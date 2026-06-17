@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 10/24 complete**
+**Status: 11/24 complete**
 
 ---
 
@@ -35,7 +35,7 @@ Spec: `spec.md` · Design: `design.html`.
 
 ## M2 — Provider abstraction & feedback
 
-- [ ] **2.1 `LLMProvider` interface + `ResumeTool`/`AgentEvent`/`ToolResult` types + Zod schemas.**
+- [x] **2.1 `LLMProvider` interface + `ResumeTool`/`AgentEvent`/`ToolResult` types + Zod schemas.**
   - AC: types compile; schemas validate sample payloads; unit tests for each schema (incl. failure cases).
 - [ ] **2.2 ClaudeProvider (`generateStructured` via Agent SDK; OAuth; unset `ANTHROPIC_API_KEY`; startup warning).**
   - AC: a structured call returns a Zod-valid object using the subscription token; startup warns if `ANTHROPIC_API_KEY` is set.
