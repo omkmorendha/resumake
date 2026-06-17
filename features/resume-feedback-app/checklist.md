@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 14/24 complete**
+**Status: 15/24 complete**
 
 ---
 
@@ -43,7 +43,7 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: structured call returns a Zod-valid object; key never appears in client bundle or logs; `config.json` is 0600.
 - [x] **2.4 Zod retry policy (≤3, re-prompt with error) + user-facing failure.**
   - AC: a forced-malformed mock retries 3× then surfaces the failure message and logs raw output.
-- [ ] **2.5 Resume-review prompt + `/analyze` → `FeedbackPoint[]` rendered as anchored list (sorted by severity, filterable).**
+- [x] **2.5 Resume-review prompt + `/analyze` → `FeedbackPoint[]` rendered as anchored list (sorted by severity, filterable).** _(analysis pipeline verified with mock provider; live LLM call gated for manual smoke test)_
   - AC: analysis on a sample resume produces anchored points; clicking a point highlights its section; filter by category/severity works.
 
 ## M3 — JD-aware analysis
