@@ -23,8 +23,9 @@ import {
 
 import { compileAndPersist } from "./compileAndPersist";
 import { readFeedback } from "./analyze";
+import { selfHeal, type HealAttempt, type Healer } from "./selfHeal";
 import { snapshotVersion } from "./versions";
-import type { CompileService } from "@/lib/latex";
+import type { CompileService, LatexError } from "@/lib/latex";
 
 export interface ApplyEditInput {
   projectId: string;
@@ -36,6 +37,11 @@ export interface ApplyEditInput {
   dataRoot?: string;
   now?: string;
   compileService?: CompileService;
+  /**
+   * Optional self-heal: when the post-apply compile fails, this agent-backed
+   * function proposes fixes (≤3 attempts, Task 4.5). Omit to skip self-heal.
+   */
+  healer?: Healer;
 }
 
 export interface ApplyEditResult {
@@ -46,6 +52,13 @@ export interface ApplyEditResult {
   /** sectionIds present after re-parsing the applied source. */
   sectionIds: string[];
   point: FeedbackPoint;
+  /** Self-heal attempts, when the initial compile failed and a healer ran. */
+  healAttempts?: HealAttempt[];
+  /**
+   * Set when the compile failed and self-heal did NOT recover. The broken edit
+   * is left in place; restore this version to undo (Task 4.5 one-click undo).
+   */
+  undoVersion?: number;
 }
 
 export async function applyEdit(input: ApplyEditInput): Promise<ApplyEditResult> {
@@ -71,36 +84,73 @@ export async function applyEdit(input: ApplyEditInput): Promise<ApplyEditResult>
   await atomicWrite(texPath, applied);
 
   // 3. Recompile + persist (leaves prior PDF on failure).
-  const compile = await compileAndPersist({
+  let finalSource = applied;
+  let compile = await compileAndPersist({
     projectId: input.projectId,
     tex: applied,
     dataRoot,
     compileService: input.compileService,
   });
 
-  // 4. Re-parse anchors from the applied source.
-  const sectionIds = parseSections(applied).map((s) => s.sectionId);
+  // 3b. Self-heal (Task 4.5): if the compile failed and a healer is supplied,
+  // try ≤3 agent fixes. On success persist the repaired source; on persistent
+  // failure leave the broken edit in place and expose the pre-edit version for
+  // a one-click undo.
+  let healAttempts: HealAttempt[] | undefined;
+  let undoVersion: number | undefined;
+  if (!compile.compiled && input.healer && compile.compileError) {
+    const heal = await selfHeal({
+      brokenTex: applied,
+      initialError: compile.compileError as LatexError,
+      healer: input.healer,
+      compileService: input.compileService,
+    });
+    healAttempts = heal.attempts;
+    if (heal.healed) {
+      finalSource = heal.source;
+      await atomicWrite(texPath, finalSource);
+      compile = await compileAndPersist({
+        projectId: input.projectId,
+        tex: finalSource,
+        dataRoot,
+        compileService: input.compileService,
+      });
+    } else {
+      undoVersion = version; // restore the pre-edit snapshot to undo
+    }
+  } else if (!compile.compiled) {
+    undoVersion = version; // no healer → surface undo immediately
+  }
 
-  // 5. Mark the point addressed (auto-advance; manual revert per spec §2).
+  // 4. Re-parse anchors from the final source.
+  const sectionIds = parseSections(finalSource).map((s) => s.sectionId);
+
+  // 5. Mark the point addressed (auto-advance; manual revert per spec §2) — but
+  // only when the edit actually compiled. A broken-and-unhealed edit is left in
+  // place for inspection and stays "open" so it isn't falsely marked done.
   const feedback = await readFeedback(input.projectId, dataRoot);
   let point = feedback.find((p) => p.id === input.pointId);
   if (!point) {
     throw new Error(`Feedback point ${input.pointId} not found.`);
   }
   const updated = feedback.map((p) =>
-    p.id === input.pointId ? { ...p, status: "addressed" as const } : p,
+    p.id === input.pointId && compile.compiled
+      ? { ...p, status: "addressed" as const }
+      : p,
   );
   point = updated.find((p) => p.id === input.pointId)!;
   await atomicWriteJson(join(dir, PROJECT_FILENAMES.feedback), updated);
 
   return {
     version,
-    source: applied,
+    source: finalSource,
     compiled: compile.compiled,
     compileError: compile.compileError
       ? { message: compile.compileError.message, line: compile.compileError.line }
       : undefined,
     sectionIds,
     point,
+    healAttempts,
+    undoVersion,
   };
 }

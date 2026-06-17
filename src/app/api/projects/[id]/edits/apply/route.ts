@@ -55,6 +55,8 @@ export async function POST(
       compiled: result.compiled,
       compileError: result.compileError ?? null,
       point: result.point,
+      healAttempts: result.healAttempts ?? null,
+      undoVersion: result.undoVersion ?? null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Apply failed.";
