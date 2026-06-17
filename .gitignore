@@ -9,6 +9,8 @@ node_modules/
 out/
 build/
 dist/
+next-env.d.ts
+*.tsbuildinfo
 
 # Local resume data (user resumes, compiled PDFs, conversations) — never commit
 data/

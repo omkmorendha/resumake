@@ -249,3 +249,11 @@ M5 PDF import (Jake's Resume template) ·
 M6 Polish (version history UI, filters, config screen) — post-v1.
 
 See `checklist.md` for ordered tasks with acceptance criteria.
+
+---
+
+## 17. Decisions log (deviations during implementation)
+
+Records departures from the spec as they happen — what changed, why, which task surfaced it.
+
+- **2026-06-17 · Task 0.1 · Next.js 16, not 15.** `create-next-app@latest` (the official scaffolder) now provisions Next.js 16.2.9 with React 19. The spec's "Next.js 15" was a point-in-time reference; the binding requirement is App Router + TypeScript + Node runtime, all satisfied. Using the current stable rather than pinning an older major. tsconfig hardened beyond the default `strict` with `noUncheckedIndexedAccess`, `noImplicitOverride`, `forceConsistentCasingInFileNames`.

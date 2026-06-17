@@ -3,11 +3,13 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
+**Status: 1/24 complete**
+
 ---
 
 ## M0 — Skeleton & compile pipeline
 
-- [ ] **0.1 Bootstrap Next.js (App Router, TS, Tailwind), strict tsconfig, ESLint.**
+- [x] **0.1 Bootstrap Next.js (App Router, TS, Tailwind), strict tsconfig, ESLint.**
   - AC: `npm run dev` serves a blank app on localhost; `tsc --noEmit` and lint pass.
 - [ ] **0.2 TeX Live Docker image + compile service abstraction.**
   - AC: a service compiles a sample `.tex` via `latexmk` in the container and returns a PDF path; transport (docker run/exec) is swappable behind an interface.
