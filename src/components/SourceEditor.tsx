@@ -67,7 +67,11 @@ export function SourceEditor() {
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
-        doc: useEditorStore.getState().source,
+        // Start empty; the reconcile effect below is the single source of
+        // truth that populates and keeps the doc in sync with the store. This
+        // avoids a mount race where seeding here and reconciling there could
+        // disagree if the store updated between render and effect execution.
+        doc: "",
         extensions: [
           lineNumbers(),
           history(),

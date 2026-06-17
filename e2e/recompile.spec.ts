@@ -65,4 +65,8 @@ test("recompile failure shows the error and keeps the stale PDF behind a banner"
   // ...and the stale PDF is still shown (canvas remains), not blanked.
   await expect(alert).toContainText(/last successful PDF/i);
   await expect(page.locator('[aria-label="PDF preview"] canvas')).toBeVisible();
+
+  // The dirty banner stays up after a failed compile — the PDF is NOT in sync
+  // with the buffer (regression guard for the markPersisted-on-failure bug).
+  await expect(page.getByText(/Unsaved edits/i)).toBeVisible();
 });

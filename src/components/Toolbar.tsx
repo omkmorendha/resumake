@@ -39,9 +39,11 @@ export function Toolbar() {
         setCompileError({ message: body.error?.message ?? "Compile request failed." });
         return;
       }
-      markPersisted(source);
       if (body.compiled) {
-        // Cache-bust so the preview reloads the new PDF bytes.
+        // Only now is the PDF in sync with the buffer: clear the dirty state
+        // and refresh the preview (cache-busted to reload the new bytes). On a
+        // failed compile we leave the dirty banner up — the PDF is NOT updated.
+        markPersisted(source);
         setPdfUrl(`/api/projects/${projectId}/pdf?t=${encodeURIComponent(nonce())}`);
       } else if (body.compileError) {
         setCompileError(body.compileError);

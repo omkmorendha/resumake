@@ -49,7 +49,11 @@ export async function POST(
     return errorResponse("MISSING_TEX", "A non-empty .tex source is required.", 400);
   }
 
-  // Persist the source first so the on-disk resume.tex matches what we compile.
+  // Persist the user's source first: resume.tex is the source of record and we
+  // must not lose their edits even if the compile fails. The §11 "never blank /
+  // keep the stale PDF" contract is about resume.pdf, which compileAndPersist
+  // only overwrites on a successful compile — so a failed compile leaves the
+  // last good PDF in place while the editable source reflects what they typed.
   await atomicWrite(join(getProjectDir(id), PROJECT_FILENAMES.resumeTex), tex);
 
   let result;
