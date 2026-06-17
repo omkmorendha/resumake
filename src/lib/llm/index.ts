@@ -39,3 +39,15 @@ export {
   type RawGenerate,
   type StructuredRetryOptions,
 } from "./structuredRetry";
+export {
+  ClaudeProvider,
+  CLAUDE_MODEL,
+  buildClaudeEnv,
+  warnIfApiKeyPresent,
+  type ClaudeProviderOptions,
+} from "./claudeProvider";
+export {
+  OpenAIProvider,
+  OPENAI_MODEL,
+  type OpenAIProviderOptions,
+} from "./openaiProvider";

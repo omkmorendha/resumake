@@ -8,7 +8,7 @@
  * last raw output for logging. Keeping this in one place guarantees Claude and
  * OpenAI honor identical retry semantics (the provider-parity contract).
  */
-import type { ZodSchema } from "zod";
+import type { ZodType } from "zod";
 
 import { StructuredGenerationError } from "./types";
 
@@ -74,7 +74,7 @@ function matchingBracketEnd(s: string, open: number): number {
 export async function generateStructuredWithRetry<T>(args: {
   system: string;
   user: string;
-  schema: ZodSchema<T>;
+  schema: ZodType<T>;
   raw: RawGenerate;
   options?: StructuredRetryOptions;
 }): Promise<T> {

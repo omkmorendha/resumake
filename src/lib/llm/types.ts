@@ -3,7 +3,7 @@
  * (API key) implement {@link LLMProvider}; the app speaks only this interface
  * so the two backends are interchangeable. Claude is the primary agentic path.
  */
-import type { ZodSchema, ZodType } from "zod";
+import type { ZodType } from "zod";
 
 import type { ChatMessage } from "./schemas";
 
@@ -42,7 +42,7 @@ export type AgentEvent =
 export interface GenerateStructuredArgs<T> {
   system: string;
   user: string;
-  schema: ZodSchema<T>;
+  schema: ZodType<T>;
 }
 
 export interface RunAgentTurnArgs {

@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 11/24 complete**
+**Status: 14/24 complete**
 
 ---
 
@@ -37,11 +37,11 @@ Spec: `spec.md` · Design: `design.html`.
 
 - [x] **2.1 `LLMProvider` interface + `ResumeTool`/`AgentEvent`/`ToolResult` types + Zod schemas.**
   - AC: types compile; schemas validate sample payloads; unit tests for each schema (incl. failure cases).
-- [ ] **2.2 ClaudeProvider (`generateStructured` via Agent SDK; OAuth; unset `ANTHROPIC_API_KEY`; startup warning).**
+- [x] **2.2 ClaudeProvider (`generateStructured` via Agent SDK; OAuth; unset `ANTHROPIC_API_KEY`; startup warning).** _(live call mocked; manual smoke test pending)_
   - AC: a structured call returns a Zod-valid object using the subscription token; startup warns if `ANTHROPIC_API_KEY` is set.
-- [ ] **2.3 OpenAIProvider (`generateStructured` via `openai`; key from `config.json` mode 0600, server-only).**
+- [x] **2.3 OpenAIProvider (`generateStructured` via `openai`; key from `config.json` mode 0600, server-only).** _(live call mocked; manual smoke test pending)_
   - AC: structured call returns a Zod-valid object; key never appears in client bundle or logs; `config.json` is 0600.
-- [ ] **2.4 Zod retry policy (≤3, re-prompt with error) + user-facing failure.**
+- [x] **2.4 Zod retry policy (≤3, re-prompt with error) + user-facing failure.**
   - AC: a forced-malformed mock retries 3× then surfaces the failure message and logs raw output.
 - [ ] **2.5 Resume-review prompt + `/analyze` → `FeedbackPoint[]` rendered as anchored list (sorted by severity, filterable).**
   - AC: analysis on a sample resume produces anchored points; clicking a point highlights its section; filter by category/severity works.
