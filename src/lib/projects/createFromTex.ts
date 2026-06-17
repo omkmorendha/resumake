@@ -7,8 +7,8 @@
  * the project is still created (the user can fix and recompile) — only the
  * log + parsed first error are recorded, never a silently-blank PDF.
  */
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import { CompileService } from "@/lib/latex";
 import type { LatexError } from "@/lib/latex";
@@ -61,10 +61,11 @@ export async function createProjectFromTex(
 
   if (result.ok && result.pdfPath) {
     // Read the compiled PDF (a stable temp copy from the service) and write it
-    // into the project dir atomically. The temp copy is left for the OS to
-    // reclaim — we don't depend on it after this point.
+    // into the project dir atomically, then remove the service's temp copy
+    // dir so it doesn't accumulate in the OS temp space.
     const pdfBytes = await readFile(result.pdfPath);
     await atomicWrite(join(dir, PROJECT_FILENAMES.resumePdf), pdfBytes);
+    await rm(dirname(result.pdfPath), { recursive: true, force: true }).catch(() => {});
     return { project, compiled: true };
   }
 

@@ -64,7 +64,13 @@ export async function POST(req: Request) {
     name = "Untitled resume";
   }
 
-  const result = await createProjectFromTex({ name, tex, provider });
+  let result;
+  try {
+    result = await createProjectFromTex({ name, tex, provider });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create project.";
+    return errorResponse("CREATE_FAILED", message, 500);
+  }
 
   return NextResponse.json(
     {
