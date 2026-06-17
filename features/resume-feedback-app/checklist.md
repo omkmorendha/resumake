@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 9/24 complete**
+**Status: 10/24 complete**
 
 ---
 
@@ -30,7 +30,7 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: "Recompile" updates the PDF; on failure the pane shows the error (and stale PDF behind a banner if one exists), never silently blank.
 - [x] **1.3 Heuristic section parser → section tree (with no-heading fallback, nesting flatten).**
   - AC: unit tests cover `\section`/`\subsection`/resume macros/environments, exotic class (→ single `document` section), and `\subsubsection` flattening.
-- [ ] **1.4 Section highlight: selecting a section scrolls/highlights source (best-effort) and PDF.**
+- [x] **1.4 Section highlight: selecting a section scrolls/highlights source (best-effort) and PDF.**
   - AC: clicking a parsed section highlights its range in the editor.
 
 ## M2 — Provider abstraction & feedback

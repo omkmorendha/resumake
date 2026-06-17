@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { FeedbackPane } from "./FeedbackPane";
 import { PdfPreview } from "./PdfPreview";
+import { SectionList } from "./SectionList";
 import { SourceEditor } from "./SourceEditor";
 import { Toolbar } from "./Toolbar";
 
@@ -54,7 +55,12 @@ export function Workspace() {
         style={{ flex: `${leftFr} 1 0` }}
         aria-label="LaTeX source"
       >
-        <SourceEditor />
+        <div className="flex h-full flex-col">
+          <SectionList />
+          <div className="min-h-0 flex-1">
+            <SourceEditor />
+          </div>
+        </div>
       </section>
 
       <Divider onPointerDown={startDrag("left")} />
