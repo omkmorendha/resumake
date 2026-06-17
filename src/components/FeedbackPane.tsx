@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, FeedbackPoint, Severity } from "@/lib/llm";
 import { useEditorStore } from "@/lib/store/editorStore";
 
+import { JdPanel } from "./JdPanel";
+
 /**
  * Right pane: the anchored, sorted, filterable feedback list (Task 2.5).
  * Loads persisted feedback on project change, runs analysis on demand, and
@@ -99,6 +101,7 @@ export function FeedbackPane() {
 
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-950">
+      <JdPanel />
       <header className="flex items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
         <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
           Feedback {points.length > 0 && `(${points.length})`}
