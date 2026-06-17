@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 3/24 complete**
+**Status: 4/24 complete**
 
 ---
 
@@ -13,7 +13,7 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: `npm run dev` serves a blank app on localhost; `tsc --noEmit` and lint pass.
 - [x] **0.2 TeX Live Docker image + compile service abstraction.**
   - AC: a service compiles a sample `.tex` via `latexmk` in the container and returns a PDF path; transport (docker run/exec) is swappable behind an interface.
-- [ ] **0.3 Docker preflight check at startup.**
+- [x] **0.3 Docker preflight check at startup.**
   - AC: with Docker stopped, the app shows a friendly setup guide instead of crashing; with Docker up, normal operation.
 - [x] **0.4 Files-only storage layer (atomic write-temp-then-rename helper, project dir CRUD).**
   - AC: create/read/delete a project dir; concurrent-write test shows no torn `feedback.json`.
