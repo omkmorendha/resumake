@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumake — Resume Feedback App · Design</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --ink: #e6e9ef;
+    --muted: #9aa3b2; --accent: #7aa2f7; --accent2: #9ece6a; --warn: #e0af68;
+    --danger: #f7768e; --line: #2a2f3a; --code: #11141a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+         line-height: 1.6; font-size: 15px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 28px 120px; }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; margin: 44px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 26px 0 8px; color: var(--accent); }
+  h4 { font-size: 15px; margin: 18px 0 6px; color: var(--accent2); }
+  p, li { color: var(--ink); }
+  .muted { color: var(--muted); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px;
+           border-radius: 999px; background: var(--warn); color: #1a1207; vertical-align: middle; }
+  .badge.accepted { background: var(--accent2); color: #0c1505; }
+  .meta { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  code { font-family: var(--mono); background: var(--code); padding: 2px 6px; border-radius: 4px;
+         font-size: 13px; color: #c0caf5; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
+        overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; color: #c0caf5; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+          padding: 18px 20px; margin: 14px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--accent); font-weight: 600; }
+  .pill { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 5px;
+          background: var(--panel2); border: 1px solid var(--line); white-space: nowrap; }
+  .tag-must { color: var(--accent2); border-color: var(--accent2); }
+  .tag-later { color: var(--warn); border-color: var(--warn); }
+  .tag-no { color: var(--danger); border-color: var(--danger); }
+  .note { border-left: 3px solid var(--accent); padding: 8px 14px; background: var(--panel2);
+          border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .note.warn { border-color: var(--warn); }
+  .note.danger { border-color: var(--danger); }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .toc { columns: 2; column-gap: 30px; font-size: 14px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .ascii { font-family: var(--mono); font-size: 12px; white-space: pre; color: #a9b1d6;
+           background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; }
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 4px 16px; font-size: 14px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+  .seq { font-family: var(--mono); font-size: 12.5px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Resumake <span class="badge" id="status-badge">Draft</span></h1>
+<p class="meta">Local-first, single-user web app for AI-driven resume feedback, conversation, and LaTeX/PDF editing &amp; export.</p>
+<p class="meta">Feature slug: <code>resume-feedback-app</code> · Greenfield · Owner: omkmorendha · Date: 2026-06-17</p>
+
+<div class="card">
+<strong>Table of contents</strong>
+<div class="toc">
+  <a href="#overview">1. Overview &amp; goals</a><br>
+  <a href="#decisions">2. Locked decisions</a><br>
+  <a href="#stack">3. Tech stack</a><br>
+  <a href="#arch">4. Architecture</a><br>
+  <a href="#data">5. Data model &amp; on-disk layout</a><br>
+  <a href="#provider">6. AI provider abstraction &amp; auth</a><br>
+  <a href="#feedback">7. Feedback generation &amp; system prompts</a><br>
+  <a href="#anchor">8. Section anchoring (heuristic LaTeX parsing)</a><br>
+  <a href="#agentloop">9. Agent loop &amp; constrained tools</a><br>
+  <a href="#latex">10. LaTeX compilation &amp; PDF</a><br>
+  <a href="#pdfimport">11. PDF import (lossy reconstruction)</a><br>
+  <a href="#ui">12. UI / UX (3-pane)</a><br>
+  <a href="#api">13. API surface</a><br>
+  <a href="#flows">14. Key flows</a><br>
+  <a href="#risks">15. Risks &amp; constraints</a><br>
+  <a href="#milestones">16. Build milestones</a><br>
+  <a href="#open">17. Open questions &amp; resolved assumptions</a><br>
+</div>
+</div>
+
+<h2 id="overview">1. Overview &amp; goals</h2>
+<p>Resumake is a personal tool that lets the owner upload a LaTeX (or PDF) resume, receive structured,
+section-anchored feedback from an LLM (optionally tailored to a pasted job description), hold a
+focused conversation on each feedback point, and let an agent loop propose edits to the underlying
+<code>.tex</code> — which the user reviews as a diff before applying. The resume compiles to PDF
+server-side and exports as either <code>.tex</code> or <code>.pdf</code>.</p>
+
+<h4>Primary goals (v1)</h4>
+<ul>
+  <li>Upload a <code>.tex</code> resume → compile → live PDF preview.</li>
+  <li>Generate structured feedback points (category + severity + section anchor + issue + suggestion), optionally tailored to a job description via structured extraction.</li>
+  <li>Per-point conversation thread; the agent can propose <code>.tex</code> edits applied via diff-approve.</li>
+  <li>Export <code>.tex</code> and compiled <code>.pdf</code>.</li>
+  <li>PDF import → text/structure extraction → pour into one clean built-in LaTeX template.</li>
+</ul>
+
+<h4>Non-goals (v1)</h4>
+<ul>
+  <li>Multi-user / hosted SaaS / shared accounts (explicitly out — see constraint in §15).</li>
+  <li>Visual fidelity match on PDF import (text+structure into a clean template only).</li>
+  <li>Job-board URL scraping.</li>
+  <li>Heavy compile sandboxing (trusted, self-authored local input).</li>
+</ul>
+
+<h2 id="decisions">2. Locked decisions</h2>
+<table>
+  <tr><th>Area</th><th>Decision</th><th>Rationale</th></tr>
+  <tr><td>Deployment</td><td>Local-first, single-user (localhost)</td><td>Pairs with local Claude subscription; no auth/hosting infra.</td></tr>
+  <tr><td>AI auth</td><td>Claude via local Agent SDK + OAuth token; OpenAI via pasted API key</td><td>Uses owner's Claude subscription quota; provider-abstracted from day 1.</td></tr>
+  <tr><td>Providers</td><td>Both Claude &amp; OpenAI, behind one abstraction</td><td>Switchable; Claude is the primary/agentic path.</td></tr>
+  <tr><td>Stack</td><td>Next.js (App Router, TypeScript)</td><td>Single codebase; Agent SDK runs in Node server runtime.</td></tr>
+  <tr><td>Persistence</td><td>Files only (per-project dirs + JSON sidecars)</td><td>No DB dependency; durable, inspectable, git-friendly.</td></tr>
+  <tr><td>LaTeX compile</td><td>Server-side Docker + full TeX Live, <code>latexmk</code></td><td>Handles arbitrary resume templates/packages reliably.</td></tr>
+  <tr><td>Compile safety</td><td>Minimal — timeout only (trusted local input)</td><td>Owner's own machine and own files; accept the risk.</td></tr>
+  <tr><td>Section anchoring</td><td>Heuristic LaTeX parsing (<code>\section</code>/<code>\subsection</code>/env blocks)</td><td>Pragmatic, works across common resume classes.</td></tr>
+  <tr><td>Edit application</td><td>Diff preview + per-change approve</td><td>Keeps the owner in control of every <code>.tex</code> change.</td></tr>
+  <tr><td>Agent autonomy</td><td>Constrained app-defined toolset (no free shell)</td><td>Predictable, safe, observable.</td></tr>
+  <tr><td>Feedback shape</td><td>Structured JSON (category, severity, anchor, issue, suggestion)</td><td>Enables filtering, anchoring, per-point chat.</td></tr>
+  <tr><td>Job tailoring</td><td>Paste JD text → structured requirement extraction → scored gap analysis</td><td>Robust (no scraping); richer than raw context injection.</td></tr>
+  <tr><td>Resume input</td><td><code>.tex</code> upload + PDF→template reconstruction</td><td>Covers LaTeX users and PDF-only users.</td></tr>
+  <tr><td>UI</td><td>3-pane: LaTeX source | PDF preview | Feedback/Chat</td><td>Overleaf-style mental model.</td></tr>
+</table>
+
+<h2 id="stack">3. Tech stack</h2>
+<table>
+  <tr><th>Layer</th><th>Choice</th><th>Notes</th></tr>
+  <tr><td>Framework</td><td>Next.js 15 (App Router) + TypeScript</td><td>Route handlers for backend; React Server/Client components for UI.</td></tr>
+  <tr><td>Runtime</td><td>Node.js (server runtime, not Edge)</td><td>Agent SDK + child-process LaTeX require full Node.</td></tr>
+  <tr><td>Agent SDK</td><td><code>@anthropic-ai/claude-agent-sdk</code></td><td>Bundles native Claude Code binary; <code>query()</code> streaming loop.</td></tr>
+  <tr><td>OpenAI</td><td><code>openai</code> SDK (Responses/Chat + tools)</td><td>Behind provider abstraction; manual tool loop.</td></tr>
+  <tr><td>LaTeX editor</td><td>CodeMirror 6 (LaTeX mode)</td><td>Source pane; lightweight, good for <code>.tex</code>.</td></tr>
+  <tr><td>PDF viewer</td><td><code>pdf.js</code> (react-pdf or direct)</td><td>Renders compiled PDF in preview pane.</td></tr>
+  <tr><td>Diff UI</td><td>CodeMirror merge view / <code>diff</code> + custom renderer</td><td>Per-hunk approve/reject.</td></tr>
+  <tr><td>LaTeX engine</td><td>TeX Live (full) via <code>latexmk -pdf</code> in a Docker container; Node runs on host</td><td>Could swap to Tectonic later; TeX Live chosen for coverage. Host-native Node = clean Agent SDK OAuth.</td></tr>
+  <tr><td>Base template</td><td>"Jake's Resume" (clean one-column, custom macros, ATS-friendly)</td><td>Used for PDF-import output and start-fresh; bundled in <code>lib/templates/</code>.</td></tr>
+  <tr><td>PDF text extract</td><td><code>pdf.js</code> / <code>pdftotext</code> (poppler)</td><td>For PDF import structure inference.</td></tr>
+  <tr><td>State (client)</td><td>React state + Zustand (or Context)</td><td>Editor/feedback/chat local state.</td></tr>
+  <tr><td>Validation</td><td>Zod</td><td>Validate structured LLM outputs + API payloads.</td></tr>
+  <tr><td>Styling</td><td>Tailwind CSS</td><td>Fast 3-pane layout.</td></tr>
+</table>
+<div class="note"><strong>Decision (OQ-3 resolved): Next.js + Agent SDK run natively on the host (macOS)</strong>, where <code>claude setup-token</code> and the owner's Claude session already live — the cleanest OAuth path. LaTeX compiles in a separate <strong>TeX Live Docker container</strong> the app shells into (<code>docker run --rm -v &lt;workdir&gt;:/work texlive ...</code>) or a long-lived container via <code>docker exec</code>. The compile service abstracts this so the transport (docker run vs exec vs future host-native latexmk) is swappable.</div>
+
+<h2 id="arch">4. Architecture</h2>
+<div class="ascii">┌─────────────────────────────────────────────────────────────────────┐
+│  Browser (localhost:3000)                                             │
+│  ┌────────────┐  ┌──────────────┐  ┌───────────────────────────────┐ │
+│  │ LaTeX pane │  │  PDF preview │  │  Feedback list + per-point     │ │
+│  │ CodeMirror │  │   pdf.js     │  │  chat + diff-approve modal     │ │
+│  └─────┬──────┘  └──────┬───────┘  └───────────────┬───────────────┘ │
+└────────┼────────────────┼──────────────────────────┼─────────────────┘
+         │  REST + SSE (streaming agent/chat tokens)  │
+┌────────▼────────────────▼──────────────────────────▼─────────────────┐
+│  Next.js route handlers (Node runtime)                                │
+│  ┌──────────────┐ ┌───────────────┐ ┌──────────────┐ ┌─────────────┐ │
+│  │ Projects API │ │ Feedback API  │ │  Chat/Agent  │ │  Compile/   │ │
+│  │ (CRUD files) │ │ (analyze)     │ │  API (loop)  │ │  Export API │ │
+│  └──────┬───────┘ └───────┬───────┘ └──────┬───────┘ └──────┬──────┘ │
+│         │                 │                │                │        │
+│  ┌──────▼─────────────────▼────────────────▼──────┐  ┌──────▼──────┐ │
+│  │   Provider abstraction (LLMProvider iface)      │  │  LaTeX svc  │ │
+│  │  ┌───────────────┐      ┌────────────────────┐  │  │ latexmk in  │ │
+│  │  │ ClaudeProvider│      │  OpenAIProvider     │  │  │ child_proc, │ │
+│  │  │ (Agent SDK,   │      │  (openai SDK,       │  │  │ temp dir,   │ │
+│  │  │  OAuth token) │      │   manual tool loop) │  │  │ timeout     │ │
+│  │  └───────────────┘      └────────────────────┘  │  └─────────────┘ │
+│  └──────────────────────┬──────────────────────────┘                 │
+│                         │                                            │
+│  ┌──────────────────────▼─────────────────────────────────────────┐ │
+│  │  Storage layer — filesystem (per-project dirs + JSON sidecars)  │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────┘
+   Docker image bundles: Node + Next.js + TeX Live + poppler</div>
+
+<h2 id="data">5. Data model &amp; on-disk layout</h2>
+<p>Files-only persistence. Each resume is a <em>project</em> directory. JSON sidecars hold feedback,
+conversations, and version history. Versions are full <code>.tex</code> snapshots (resumes are small).</p>
+<pre>data/
+└── projects/
+    └── &lt;projectId&gt;/                 # e.g. ulid
+        ├── project.json             # metadata (name, provider, createdAt, currentVersion)
+        ├── resume.tex               # the working LaTeX source (current)
+        ├── resume.pdf               # last successful compile
+        ├── compile.log              # last compile stdout/stderr
+        ├── jobposting.json          # { rawText, extractedRequirements } | absent
+        ├── feedback.json            # FeedbackPoint[] (latest analysis)
+        ├── versions/
+        │   ├── 0001.tex             # snapshot before each applied edit
+        │   ├── 0002.tex
+        │   └── index.json           # [{ version, ts, summary, byPoint? }]
+        └── conversations/
+            └── &lt;feedbackPointId&gt;.json   # ChatMessage[] for that point (+ a "general" thread)</pre>
+
+<h4>Types (TypeScript / Zod-validated)</h4>
+<pre>type Severity = "critical" | "high" | "medium" | "low" | "nit";
+type Category = "impact" | "clarity" | "ats" | "formatting"
+              | "relevance" | "consistency" | "grammar";
+
+interface SectionAnchor {
+  sectionId: string;        // stable id from the parser (e.g. "experience")
+  sectionTitle: string;     // "Experience"
+  subBlock?: string;        // "Job 1 · Acme Corp" | bullet index
+  texRange?: { start: number; end: number };  // best-effort char range (informational)
+}
+
+interface FeedbackPoint {
+  id: string;
+  category: Category;
+  severity: Severity;
+  anchor: SectionAnchor;
+  issue: string;            // what's wrong / weak
+  suggestion: string;       // concrete fix (may include rewritten bullet)
+  jdRelevance?: string;     // why it matters for the pasted JD (if any)
+  status: "open" | "addressed" | "dismissed";
+}
+
+interface ChatMessage {
+  id: string; role: "user" | "assistant" | "tool";
+  content: string; ts: string;
+  proposedEdit?: { diff: string; targetSectionId?: string }; // surfaced for approval
+}
+
+interface JobRequirements {
+  mustHaveSkills: string[]; niceToHaveSkills: string[];
+  yearsExperience?: string; keywords: string[];
+  responsibilities: string[]; rawText: string;
+}</pre>
+
+<h2 id="provider">6. AI provider abstraction &amp; auth</h2>
+<h4>Interface</h4>
+<pre>interface LLMProvider {
+  // Structured, non-agentic call (feedback + JD extraction)
+  generateStructured&lt;T&gt;(args: {
+    system: string; user: string; schema: ZodSchema&lt;T&gt;;
+  }): Promise&lt;T&gt;;
+
+  // Agentic conversation loop with constrained tools; streams events
+  runAgentTurn(args: {
+    system: string;
+    messages: ChatMessage[];
+    tools: ResumeTool[];          // app-defined (see §9)
+    onEvent: (e: AgentEvent) =&gt; void;  // streamed tokens, tool calls, proposed edits
+  }): Promise&lt;ChatMessage&gt;;
+}</pre>
+<ul>
+  <li><strong>ClaudeProvider</strong> — wraps <code>@anthropic-ai/claude-agent-sdk</code>'s <code>query()</code>. Custom tools registered as in-process SDK MCP tools. Auth via <code>CLAUDE_CODE_OAUTH_TOKEN</code>. For <code>generateStructured</code>, run a single non-tool turn and validate output with Zod (retry on parse failure).</li>
+  <li><strong>OpenAIProvider</strong> — wraps the <code>openai</code> SDK. Manual tool loop (call → tool_use → tool_result → repeat). Auth via pasted <code>OPENAI_API_KEY</code> stored in <code>data/config.json</code> (local only). Structured output via JSON schema / response_format.</li>
+</ul>
+<div class="note warn"><strong>Auth footgun (documented in official caveats):</strong> if <code>ANTHROPIC_API_KEY</code> is set in the environment, the Agent SDK uses it (billed as API credits) <em>instead of</em> your subscription OAuth token. The app must (a) generate the token via <code>claude setup-token</code>, (b) read it from <code>data/config.json</code> or <code>.env</code> as <code>CLAUDE_CODE_OAUTH_TOKEN</code>, and (c) <strong>explicitly unset <code>ANTHROPIC_API_KEY</code></strong> in the spawned SDK environment. Add a startup check that warns if <code>ANTHROPIC_API_KEY</code> is present.</div>
+<div class="note danger"><strong>Hard licensing constraint:</strong> Anthropic does not permit third-party developers to offer claude.ai/subscription login to <em>other</em> end users without prior approval. This tool is and must remain a <strong>personal, single-user, local</strong> app authenticated with the owner's own token. Do not evolve it into a hosted multi-user product sharing this auth path.</div>
+
+<h2 id="feedback">7. Feedback generation &amp; system prompts</h2>
+<p>Two LLM operations: (a) optional JD requirement extraction, (b) resume analysis producing
+<code>FeedbackPoint[]</code>. Both use <code>generateStructured</code> with Zod schemas.</p>
+
+<h4>Standard resume-review system prompt (synthesized from researched best practices)</h4>
+<p class="muted">Drawn from common high-quality patterns: expert-reviewer framing, ATS-awareness, STAR
+structure, action-verb + quantification checks, one-column ATS-safe formatting, and per-section
+Good/Improve/Add analysis. Stored in <code>lib/prompts/resumeReview.ts</code>.</p>
+<pre>You are an expert technical resume reviewer and career coach who also
+understands how Applicant Tracking Systems (ATS) parse resumes. You give
+specific, actionable, honest feedback — never vague praise.
+
+Evaluate the resume across these dimensions:
+1. IMPACT     — Does each bullet show a quantified result? Strong action
+                verb first? STAR-shaped (Situation/Task/Action/Result)?
+2. CLARITY    — Concise, jargon-appropriate, no filler ("responsible for").
+3. ATS        — One-column, no tables/text-boxes/graphics that break parsers;
+                standard section headings; parseable dates.
+4. RELEVANCE  — {if JD provided} alignment to the target role's must-haves
+                and keywords; {else} alignment to the apparent target role.
+5. FORMATTING — Consistency (tense, punctuation, date format), length
+                (prefer one page), whitespace.
+6. CONSISTENCY/GRAMMAR — tense agreement, typos, parallel structure.
+
+For EACH issue, emit a structured feedback point with:
+- category, severity, the section it targets,
+- a precise description of the issue,
+- a concrete suggestion (rewrite weak bullets verbatim where useful),
+- {if JD} why it matters for the target role.
+
+Prefer fewer, higher-signal points over exhaustive nitpicks. Order by
+severity. Quote the exact resume text you are critiquing so it can be
+anchored to the source. Do NOT invent achievements or fabricate metrics —
+flag missing metrics and ask the user to supply them.</pre>
+
+<h4>JD extraction prompt (when a job posting is pasted)</h4>
+<pre>Extract structured requirements from this job posting: must-have skills,
+nice-to-have skills, years of experience, the top 10–15 ATS keywords,
+and key responsibilities. Output strict JSON. Do not infer requirements
+not present in the text.</pre>
+<p>The extracted <code>JobRequirements</code> is injected into the review prompt's RELEVANCE dimension,
+and the review additionally emits a <strong>gap analysis</strong> (which must-haves/keywords are
+missing from the resume) as high-severity <code>relevance</code> feedback points.</p>
+
+<h4>Conversation / agent system prompt (per-point chat)</h4>
+<pre>You are helping the user improve ONE specific part of their resume:
+"{feedbackPoint.issue}" in section "{anchor.sectionTitle}".
+You can read the current LaTeX, and propose edits via the propose_edit
+tool. Always show the user a focused change; never rewrite unrelated
+sections. Keep the resume ATS-safe and one page. When you propose an
+edit, briefly explain why. {if JD: optimize toward the target role.}</pre>
+
+<h2 id="anchor">8. Section anchoring (heuristic LaTeX parsing)</h2>
+<p>A lightweight parser scans <code>resume.tex</code> and produces a section tree without a full LaTeX
+parse:</p>
+<ul>
+  <li>Detect <code>\section{...}</code>, <code>\subsection{...}</code>, common resume macros (<code>\resumeSubheading</code>, <code>\cventry</code>, etc.) and environments (<code>itemize</code>, <code>\begin{rSection}</code>).</li>
+  <li>Each detected heading → a <code>SectionAnchor</code> with a stable <code>sectionId</code> (slug of title) and char range to the next heading.</li>
+  <li>Bullets (<code>\item</code>) within a section become candidate sub-blocks.</li>
+  <li>The parser is <strong>best-effort</strong>: <code>texRange</code> is informational (for editor highlighting); anchoring of feedback uses the stable <code>sectionId</code> + quoted text, which survives edits even when char offsets shift.</li>
+</ul>
+<div class="note">Because the agent edits via <code>propose_edit</code> (string find/replace within a section), char ranges drift after edits. <strong>Re-run the parser after every applied edit</strong> and re-resolve anchors by matching quoted text → section. This is why anchors store quoted text, not just offsets (resolves the brittleness of pure line/char ranges).</div>
+
+<h2 id="agentloop">9. Agent loop &amp; constrained tools</h2>
+<p>The agent (Claude via Agent SDK, or OpenAI via manual loop) is given a fixed set of app-defined
+tools — <strong>no Bash, no arbitrary filesystem</strong>. For ClaudeProvider these are registered as
+in-process SDK MCP tools; built-in tools (Read/Edit/Bash) are <em>not</em> in <code>allowedTools</code>.</p>
+<table>
+  <tr><th>Tool</th><th>Input</th><th>Effect</th></tr>
+  <tr><td><code>read_resume</code></td><td>—</td><td>Returns current <code>resume.tex</code> + parsed section tree.</td></tr>
+  <tr><td><code>get_context</code></td><td>{ sectionId? }</td><td>Returns the feedback point, JD requirements, and target section text.</td></tr>
+  <tr><td><code>propose_edit</code></td><td>{ sectionId, find, replace, rationale }</td><td>Produces a diff surfaced to the user for approval. Does NOT write to disk.</td></tr>
+  <tr><td><code>recompile</code></td><td>—</td><td>Compiles the <em>proposed</em> (or current) <code>.tex</code> to validate it builds; returns errors if any.</td></tr>
+</table>
+<p><strong>Approval gate:</strong> <code>propose_edit</code> only stages a diff. The UI shows it; on user approve, the
+server snapshots the current <code>.tex</code> to <code>versions/NNNN.tex</code>, applies the change, recompiles,
+updates <code>resume.pdf</code>, and re-parses anchors. On reject, nothing is written. This realizes the
+"diff preview + approve" decision and keeps the loop observable.</p>
+<div class="note warn">Streaming: agent events (assistant tokens, tool calls, proposed diffs) stream to the browser over SSE so the chat feels live. Tool execution happens server-side; only <code>propose_edit</code> requires a human gate before it has any effect.</div>
+
+<h2 id="latex">10. LaTeX compilation &amp; PDF</h2>
+<ul>
+  <li>Compile via <code>latexmk -pdf -interaction=nonstopmode -halt-on-error</code> in a temp working dir, spawned with <code>child_process</code>.</li>
+  <li><strong>Timeout</strong> (e.g. 30s) and process kill on overrun — the one safety measure (input is trusted/self-authored per decision).</li>
+  <li>On success: copy PDF to <code>resume.pdf</code>, log to <code>compile.log</code>, return success + (optional) page count.</li>
+  <li>On failure: parse <code>latexmk</code>/<code>.log</code> for the first error + line number; surface in the UI near the source pane.</li>
+  <li>The full TeX Live install lives in the Docker image so arbitrary resume templates/packages compile.</li>
+</ul>
+<div class="note">Compilation is the slowest op (1–5s typical). Debounce auto-compile on source edits, or compile on explicit "Recompile" + after each applied agent edit. <strong>Decision: compile on explicit action + after applied edits</strong> (not on every keystroke) to keep it snappy. See OQ-2.</div>
+
+<h2 id="pdfimport">11. PDF import (lossy reconstruction)</h2>
+<p>Honest, achievable path: <strong>extract text + infer structure → pour into ONE clean built-in
+LaTeX template</strong>. Output is well-formatted but does <em>not</em> visually match the original PDF.</p>
+<ol>
+  <li>Extract text with <code>pdftotext -layout</code> (poppler) and/or <code>pdf.js</code>.</li>
+  <li>LLM <code>generateStructured</code> call segments text into resume sections (contact, summary, experience[{company, role, dates, bullets}], education, skills, projects).</li>
+  <li>Render that structure through a bundled, ATS-friendly one-column template (e.g. a clean <code>article</code>/<code>moderncv</code>-style class) → <code>resume.tex</code>.</li>
+  <li>Compile and present. The user can then edit/iterate normally.</li>
+</ol>
+<div class="note warn">The UI must set expectations explicitly: "Imported from PDF — formatting is rebuilt from a clean template, not copied from your original." This prevents the disappointment risk of PDF import.</div>
+
+<h2 id="ui">12. UI / UX (3-pane)</h2>
+<div class="ascii">┌─ Toolbar: [Project ▾] [Provider: Claude ▾] [Recompile] [Export ▾] [JD…] ─┐
+├────────────────────┬───────────────────────┬───────────────────────────┤
+│  LaTeX source      │   PDF preview         │  Feedback & Chat          │
+│  (CodeMirror)      │   (pdf.js)            │  ┌──────────────────────┐ │
+│                    │                       │  │ ▸ Run analysis        │ │
+│  \section{Exp...}  │   [rendered resume]   │  │ Filter: sev ▾ cat ▾   │ │
+│  \item Led ...     │                       │  ├──────────────────────┤ │
+│                    │                       │  │ ● HIGH · impact       │ │
+│  (click feedback   │   (scrolls; page nav) │  │   Experience          │ │
+│   highlights the   │                       │  │   "Led team" → quant. │ │
+│   section here)    │                       │  │   [Discuss] [Dismiss] │ │
+│                    │                       │  ├──────────────────────┤ │
+│                    │                       │  │ chat thread for the   │ │
+│                    │                       │  │ selected point +      │ │
+│                    │                       │  │ [diff approve modal]  │ │
+│                    │                       │  └──────────────────────┘ │
+└────────────────────┴───────────────────────┴───────────────────────────┘</div>
+<ul>
+  <li>Selecting a feedback point highlights its section in the source pane (best-effort) and scrolls the PDF.</li>
+  <li>"Discuss" opens the per-point chat thread; the agent can stream a reply and propose an edit.</li>
+  <li>Proposed edit → diff modal (per-hunk accept/reject) → apply → recompile → PDF refreshes.</li>
+  <li>JD button opens a paste box; on submit, requirements are extracted and analysis is re-run JD-aware.</li>
+  <li>Export menu: download <code>.tex</code> or <code>.pdf</code>.</li>
+</ul>
+
+<h2 id="api">13. API surface (Next.js route handlers)</h2>
+<table>
+  <tr><th>Route</th><th>Method</th><th>Purpose</th></tr>
+  <tr><td><code>/api/projects</code></td><td>GET / POST</td><td>List / create project (create accepts <code>.tex</code> upload or PDF).</td></tr>
+  <tr><td><code>/api/projects/:id</code></td><td>GET / PATCH / DELETE</td><td>Read project (tex, feedback, meta); update source; delete.</td></tr>
+  <tr><td><code>/api/projects/:id/compile</code></td><td>POST</td><td>Compile current (or supplied) <code>.tex</code> → PDF; return log/errors.</td></tr>
+  <tr><td><code>/api/projects/:id/analyze</code></td><td>POST</td><td>Run feedback analysis (body: { provider, jobPostingText? }). Returns <code>FeedbackPoint[]</code>.</td></tr>
+  <tr><td><code>/api/projects/:id/jd</code></td><td>POST</td><td>Extract &amp; store JobRequirements from pasted text.</td></tr>
+  <tr><td><code>/api/projects/:id/chat/:pointId</code></td><td>POST (SSE)</td><td>Agent turn for a point; streams events incl. proposed edits.</td></tr>
+  <tr><td><code>/api/projects/:id/edits/apply</code></td><td>POST</td><td>Apply an approved diff: snapshot version, write, recompile, re-parse.</td></tr>
+  <tr><td><code>/api/projects/:id/export</code></td><td>GET</td><td>Download <code>.tex</code> or <code>.pdf</code> (<code>?format=</code>).</td></tr>
+  <tr><td><code>/api/config</code></td><td>GET / PATCH</td><td>Provider selection, OpenAI key, OAuth token presence check.</td></tr>
+</table>
+
+<h2 id="flows">14. Key flows</h2>
+<h4>Analyze (JD-aware)</h4>
+<p class="seq">UI → POST /jd (paste) → extract JobRequirements → UI → POST /analyze {provider, jd} →
+generateStructured(reviewPrompt + requirements) → validate FeedbackPoint[] (Zod) →
+persist feedback.json → render list (sorted by severity, gap items high).</p>
+<h4>Discuss a point &amp; apply an edit</h4>
+<p class="seq">Select point → POST /chat/:pointId (SSE) → agent runAgentTurn(tools) →
+[read_resume / get_context] → streams reply → propose_edit(diff) →
+UI diff modal → user approves → POST /edits/apply → snapshot vNNNN →
+write resume.tex → recompile → re-parse anchors → PDF + feedback refresh →
+point status optionally → "addressed".</p>
+<h4>PDF import</h4>
+<p class="seq">POST /projects (PDF) → pdftotext → generateStructured(segmentation) →
+render clean template → resume.tex → compile → open project with "rebuilt from template" banner.</p>
+
+<h2 id="risks">15. Risks &amp; constraints</h2>
+<table>
+  <tr><th>Risk / constraint</th><th>Severity</th><th>Mitigation</th></tr>
+  <tr><td><code>ANTHROPIC_API_KEY</code> silently overrides OAuth → billed as API</td><td>High</td><td>Unset it in spawned env; startup warning; document <code>claude setup-token</code>.</td></tr>
+  <tr><td>Anthropic ToS: no third-party subscription login → must stay single-user/personal</td><td>High</td><td>Hard non-goal; no multi-user auth path; documented.</td></tr>
+  <tr><td>Anchor drift after edits (char offsets stale)</td><td>Medium</td><td>Anchor by sectionId + quoted text; re-parse after every applied edit.</td></tr>
+  <tr><td>PDF import disappoints (no visual match)</td><td>Medium</td><td>Explicit UI banner; "rebuilt from clean template" expectation set.</td></tr>
+  <tr><td>LaTeX compile fails on exotic packages</td><td>Medium</td><td>Full TeX Live in image; surface first error+line; let user fix source.</td></tr>
+  <tr><td>OpenAI structured-output / tool-loop parity with Claude</td><td>Medium</td><td>Provider abstraction; Zod-validate + retry; Claude is primary path.</td></tr>
+  <tr><td>Long agent turns / token cost on subscription quota</td><td>Low</td><td>Constrained tools; per-point scoped context; explicit recompile.</td></tr>
+  <tr><td>Compile timeout/runaway (no heavy sandbox)</td><td>Low (accepted)</td><td>Timeout + kill; trusted self-authored input per decision.</td></tr>
+</table>
+
+<h2 id="milestones">16. Build milestones</h2>
+<ol>
+  <li><strong>M0 — Skeleton:</strong> Next.js + Tailwind + Docker(TeX Live) + files storage; create project from <code>.tex</code>; compile → PDF preview; export <code>.tex</code>/<code>.pdf</code>. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M1 — 3-pane editor:</strong> CodeMirror source pane, pdf.js preview, recompile-on-action; heuristic section parser. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M2 — Provider abstraction + feedback:</strong> ClaudeProvider (Agent SDK + OAuth) &amp; OpenAIProvider; <code>generateStructured</code>; review prompt; render <code>FeedbackPoint[]</code> list; anchor highlighting. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M3 — JD-aware analysis:</strong> paste JD → extract requirements → gap analysis in feedback. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M4 — Agent loop + diff-approve:</strong> per-point SSE chat; constrained tools; <code>propose_edit</code> → diff modal → apply → snapshot/recompile/re-parse. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M5 — PDF import:</strong> pdftotext → segmentation → clean template → project. <span class="pill tag-must">v1 core</span></li>
+  <li><strong>M6 — Polish:</strong> version history UI, feedback filters, error surfacing, config screen. <span class="pill tag-later">post-v1 nice-to-have</span></li>
+</ol>
+
+<h2 id="open">17. Open questions &amp; resolved assumptions</h2>
+<h4>Resolved (locked in §2)</h4>
+<ul>
+  <li>Deployment, auth, providers, stack, persistence, compile location, compile safety, anchoring, edit-application, agent autonomy, feedback shape, JD handling, resume input, UI layout, v1 scope (all four pillars are v1).</li>
+</ul>
+<h4>Open questions to confirm</h4>
+<ul>
+  <li><strong>OQ-1 (resolved default):</strong> Engine = full TeX Live (not Tectonic) for max package coverage. Confirm acceptable image size (~1–4GB) for a local tool.</li>
+  <li><strong>OQ-2 (resolved default):</strong> Compile on explicit action + after applied edits (no compile-on-keystroke). Confirm.</li>
+  <li><strong>OQ-3 (RESOLVED):</strong> Next.js + Agent SDK run natively on the host (macOS); LaTeX compiles in a TeX Live Docker container the app shells into. Chosen for the clean <code>claude setup-token</code> OAuth path.</li>
+  <li><strong>OQ-4 (RESOLVED):</strong> Bundled template = "Jake's Resume" (clean one-column, ATS-friendly) for PDF-import output and start-fresh.</li>
+  <li><strong>OQ-5:</strong> Should "Run analysis" diff against prior feedback (track which points are newly addressed) or always replace? Default: replace, mark resolved heuristically.</li>
+</ul>
+
+</div>
+</body>
+</html>
