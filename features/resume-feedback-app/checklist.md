@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 15/24 complete**
+**Status: 17/24 complete**
 
 ---
 
@@ -48,9 +48,9 @@ Spec: `spec.md` · Design: `design.html`.
 
 ## M3 — JD-aware analysis
 
-- [ ] **3.1 JD paste UI + `/jd` extraction → `JobRequirements` stored.**
+- [x] **3.1 JD paste UI + `/jd` extraction → `JobRequirements` stored.** _(extraction pipeline mocked; live LLM gated)_
   - AC: pasting a JD stores structured requirements; arbitrary pasted text doesn't crash extraction.
-- [ ] **3.2 JD-aware analysis adds high-severity `relevance` gap points (missing keywords/skills).**
+- [x] **3.2 JD-aware analysis adds high-severity `relevance` gap points (missing keywords/skills).** _(JD→prompt→gap-point flow verified with mock; live LLM gated)_
   - AC: with a JD present, analysis surfaces explicit keyword/skill gaps as `relevance` points.
 
 ## M4 — Agent loop, diff-approve, self-heal

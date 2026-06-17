@@ -10,9 +10,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import type { LLMProvider } from "@/lib/llm";
+import type { JobRequirements, LLMProvider } from "@/lib/llm";
 import { PROJECT_FILENAMES, createProject, getProjectDir } from "@/lib/storage";
 import { analyzeResume, readFeedback, sortBySeverity } from "./analyze";
+import { extractAndStoreJobPosting } from "./jobPosting";
 
 const RESUME = String.raw`\documentclass{article}
 \begin{document}
@@ -82,6 +83,67 @@ describe("analyzeResume", () => {
     expect(onDisk).toHaveLength(2);
     const reread = await readFeedback(id, dataRoot);
     expect(reread[0]?.severity).toBe("critical");
+  });
+
+  it("is JD-aware: auto-loads a stored JD, feeds it to the prompt, and surfaces relevance gap points (Task 3.2)", async () => {
+    const { id, dataRoot } = await makeProject();
+
+    // Store a JD via the real extraction path (with a fake extractor provider).
+    const jdReqs: JobRequirements = {
+      mustHaveSkills: ["Kubernetes", "Go"],
+      niceToHaveSkills: [],
+      keywords: ["kubernetes", "golang"],
+      responsibilities: ["Run clusters"],
+      rawText: "platform engineer JD",
+    };
+    const jdProvider: LLMProvider = {
+      name: "claude",
+      generateStructured: (async () => jdReqs) as LLMProvider["generateStructured"],
+      runAgentTurn: async () => {
+        throw new Error("nope");
+      },
+    };
+    await extractAndStoreJobPosting({
+      projectId: id,
+      provider: jdProvider,
+      rawText: "platform engineer JD",
+      dataRoot,
+    });
+
+    // Capture the prompt the review provider receives.
+    let capturedUser = "";
+    const reviewProvider: LLMProvider = {
+      name: "claude",
+      generateStructured: (async (a: { user: string }) => {
+        capturedUser = a.user;
+        return {
+          points: [
+            {
+              category: "relevance",
+              severity: "high",
+              anchor: { sectionId: "skills", sectionTitle: "Skills" },
+              issue: "Missing required skill: Kubernetes.",
+              suggestion: "Add Kubernetes experience if you have it.",
+              jdRelevance: "Listed as a must-have.",
+            },
+          ],
+        };
+      }) as LLMProvider["generateStructured"],
+      runAgentTurn: async () => {
+        throw new Error("nope");
+      },
+    };
+
+    // jobRequirements undefined → auto-load the stored JD from disk.
+    const points = await analyzeResume({ projectId: id, provider: reviewProvider, dataRoot });
+
+    // The JD reached the prompt...
+    expect(capturedUser).toContain("TARGET JOB REQUIREMENTS");
+    expect(capturedUser).toContain("Kubernetes");
+    // ...and a high-severity relevance gap point came back.
+    expect(points[0]?.category).toBe("relevance");
+    expect(points[0]?.severity).toBe("high");
+    expect(points[0]?.issue).toMatch(/Kubernetes/);
   });
 
   it("falls back to the first section for an unknown sectionId", async () => {

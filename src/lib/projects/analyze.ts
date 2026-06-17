@@ -25,6 +25,8 @@ import {
 import { PROJECT_FILENAMES, atomicWriteJson, getProjectDir } from "@/lib/storage";
 import { getDataRoot } from "@/lib/storage";
 
+import { readJobRequirements } from "./jobPosting";
+
 const SEVERITY_ORDER: Record<FeedbackPoint["severity"], number> = {
   critical: 0,
   high: 1,
@@ -42,7 +44,12 @@ export function sortBySeverity(points: FeedbackPoint[]): FeedbackPoint[] {
 export interface AnalyzeInput {
   projectId: string;
   provider: LLMProvider;
-  jobRequirements?: JobRequirements;
+  /**
+   * JD requirements for JD-aware analysis. If omitted, stored requirements are
+   * loaded from jobposting.json when present (Task 3.2). Pass `null` to force a
+   * non-JD analysis even when a JD is stored.
+   */
+  jobRequirements?: JobRequirements | null;
   dataRoot?: string;
   /** Inject the resume source (tests); otherwise read from disk. */
   resumeTex?: string;
@@ -60,12 +67,20 @@ export async function analyzeResume(
 
   const sections = parseSections(resumeTex);
 
+  // Use the explicitly-passed JD, else auto-load a stored one (undefined → load;
+  // null → caller forced a non-JD analysis).
+  const jobRequirements =
+    input.jobRequirements === undefined
+      ? await readJobRequirements(input.projectId, dataRoot)
+      : input.jobRequirements;
+  const jd = jobRequirements ?? undefined;
+
   const review = await input.provider.generateStructured({
-    system: buildReviewSystemPrompt(input.jobRequirements),
+    system: buildReviewSystemPrompt(jd),
     user: buildReviewUserPrompt({
       resumeTex,
       sections,
-      jobRequirements: input.jobRequirements,
+      jobRequirements: jd,
     }),
     schema: ReviewResultSchema,
   });
