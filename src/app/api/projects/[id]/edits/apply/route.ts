@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { makeAgentHealer } from "@/lib/agent/healer";
+import { getProvider } from "@/lib/llm/providerFactory";
 import { applyEdit } from "@/lib/projects/applyEdit";
+import type { Healer } from "@/lib/projects/selfHeal";
 import { isValidProjectId, readProject } from "@/lib/storage";
 
 export const runtime = "nodejs";
@@ -42,12 +45,24 @@ export async function POST(
     );
   }
 
+  // Build an agent-backed healer for self-heal (Task 4.5). If no provider is
+  // configured (no token/key), the provider call inside the healer throws and
+  // it returns null → apply falls back to error + one-click undo.
+  let healer: Healer | undefined;
+  try {
+    const provider = await getProvider();
+    healer = makeAgentHealer(provider);
+  } catch {
+    healer = undefined; // no provider configured → no auto-heal
+  }
+
   try {
     const result = await applyEdit({
       projectId: id,
       pointId: body.pointId,
       diff: body.diff,
       acceptedHunks: body.acceptedHunks,
+      healer,
     });
     return NextResponse.json({
       version: result.version,
@@ -55,6 +70,7 @@ export async function POST(
       compiled: result.compiled,
       compileError: result.compileError ?? null,
       point: result.point,
+      sectionIds: result.sectionIds,
       healAttempts: result.healAttempts ?? null,
       undoVersion: result.undoVersion ?? null,
     });

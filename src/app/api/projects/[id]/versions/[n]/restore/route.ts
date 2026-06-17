@@ -38,6 +38,7 @@ export async function POST(
       source: result.source,
       compiled: result.compiled,
       compileError: result.compileError ?? null,
+      sectionIds: result.sectionIds,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Restore failed.";
