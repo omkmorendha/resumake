@@ -62,7 +62,7 @@
 <body>
 <div class="wrap">
 
-<h1>Resumake <span class="badge" id="status-badge">Draft</span></h1>
+<h1>Resumake <span class="badge accepted" id="status-badge">Accepted</span></h1>
 <p class="meta">Local-first, single-user web app for AI-driven resume feedback, conversation, and LaTeX/PDF editing &amp; export.</p>
 <p class="meta">Feature slug: <code>resume-feedback-app</code> · Greenfield · Owner: omkmorendha · Date: 2026-06-17</p>
 
@@ -185,6 +185,8 @@ server-side and exports as either <code>.tex</code> or <code>.pdf</code>.</p>
 <h2 id="data">5. Data model &amp; on-disk layout</h2>
 <p>Files-only persistence. Each resume is a <em>project</em> directory. JSON sidecars hold feedback,
 conversations, and version history. Versions are full <code>.tex</code> snapshots (resumes are small).</p>
+<div class="note"><strong>Durability:</strong> all mutating writes (<code>resume.tex</code>, <code>feedback.json</code>, conversation files) use write-to-temp-then-rename for atomicity. On an applied edit the version snapshot is persisted <em>before</em> <code>resume.tex</code> is overwritten, so a crash mid-write always leaves a recoverable prior version. On project load, the app scans <code>versions/</code> and rebuilds <code>index.json</code> if missing/out-of-sync, warning on orphaned files. <code>summary</code> in the version index is an auto-generated one-line description of the applied diff(s).</div>
+<div class="note warn"><strong>Single-tab guard:</strong> the app assumes one browser tab per project (no write locking). On open, a project acquires a short-lived session token in <code>project.json</code>; a second tab on the same project shows a "already open elsewhere" warning rather than risking concurrent-write corruption.</div>
 <pre>data/
 └── projects/
     └── &lt;projectId&gt;/                 # e.g. ulid
@@ -222,6 +224,8 @@ interface FeedbackPoint {
   suggestion: string;       // concrete fix (may include rewritten bullet)
   jdRelevance?: string;     // why it matters for the pasted JD (if any)
   status: "open" | "addressed" | "dismissed";
+  // Auto-set to "addressed" when an approved edit targets this point's sectionId
+  // (user can manually revert to "open"). "dismissed" is always manual.
 }
 
 interface ChatMessage {
@@ -251,10 +255,31 @@ interface JobRequirements {
     tools: ResumeTool[];          // app-defined (see §9)
     onEvent: (e: AgentEvent) =&gt; void;  // streamed tokens, tool calls, proposed edits
   }): Promise&lt;ChatMessage&gt;;
-}</pre>
+}
+
+// Tool + event contracts (referenced by runAgentTurn)
+type ResumeToolName = "read_resume" | "get_context" | "propose_edit" | "recompile";
+interface ResumeTool {
+  name: ResumeToolName;
+  description: string;
+  inputSchema: ZodSchema&lt;unknown&gt;;            // validated before execution
+  execute: (input: unknown) =&gt; Promise&lt;ToolResult&gt;;
+}
+type ToolResult =
+  | { ok: true; data: unknown }
+  | { ok: false; error: string };             // e.g. compile error fed back to the loop
+
+type AgentEvent =
+  | { type: "token"; text: string }                                 // streamed assistant text
+  | { type: "tool_call"; tool: ResumeToolName; input: unknown }
+  | { type: "tool_result"; tool: ResumeToolName; result: ToolResult }
+  | { type: "proposed_edit"; diff: string; targetSectionId?: string; rationale: string }
+  | { type: "error"; message: string }
+  | { type: "done"; message: ChatMessage };</pre>
 <ul>
-  <li><strong>ClaudeProvider</strong> — wraps <code>@anthropic-ai/claude-agent-sdk</code>'s <code>query()</code>. Custom tools registered as in-process SDK MCP tools. Auth via <code>CLAUDE_CODE_OAUTH_TOKEN</code>. For <code>generateStructured</code>, run a single non-tool turn and validate output with Zod (retry on parse failure).</li>
-  <li><strong>OpenAIProvider</strong> — wraps the <code>openai</code> SDK. Manual tool loop (call → tool_use → tool_result → repeat). Auth via pasted <code>OPENAI_API_KEY</code> stored in <code>data/config.json</code> (local only). Structured output via JSON schema / response_format.</li>
+  <li><strong>ClaudeProvider</strong> — wraps <code>@anthropic-ai/claude-agent-sdk</code>'s <code>query()</code>. The four <code>ResumeTool</code>s are registered as in-process SDK MCP tools; built-in Read/Edit/Bash are <em>excluded</em> from <code>allowedTools</code>. SDK message stream is mapped to <code>AgentEvent</code>s. Auth via <code>CLAUDE_CODE_OAUTH_TOKEN</code>. For <code>generateStructured</code>, run a single non-tool turn and Zod-validate (retry policy below).</li>
+  <li><strong>OpenAIProvider</strong> — wraps the <code>openai</code> SDK with a manual tool loop. The same four <code>ResumeTool</code>s are exposed as OpenAI function tools (their <code>inputSchema</code> → JSON schema). Loop: model emits tool_call → app validates input with Zod → <code>execute()</code> → push <code>tool_result</code> (including <code>{ok:false,error}</code> on failure so the model can react) → repeat until the model returns final text. <code>response_format</code>/JSON schema is used only for <code>generateStructured</code>, not the agentic loop. Auth via pasted <code>OPENAI_API_KEY</code> stored server-side in <code>data/config.json</code> (mode 0600, never sent to the browser, never logged).</li>
+  <li><strong>Zod retry policy</strong> (both providers, <code>generateStructured</code>): up to <strong>3</strong> attempts; on each failure, re-prompt with the validation error appended. After the 3rd failure, surface a user-facing "structured extraction failed — try rewording" message and log the raw output.</li>
 </ul>
 <div class="note warn"><strong>Auth footgun (documented in official caveats):</strong> if <code>ANTHROPIC_API_KEY</code> is set in the environment, the Agent SDK uses it (billed as API credits) <em>instead of</em> your subscription OAuth token. The app must (a) generate the token via <code>claude setup-token</code>, (b) read it from <code>data/config.json</code> or <code>.env</code> as <code>CLAUDE_CODE_OAUTH_TOKEN</code>, and (c) <strong>explicitly unset <code>ANTHROPIC_API_KEY</code></strong> in the spawned SDK environment. Add a startup check that warns if <code>ANTHROPIC_API_KEY</code> is present.</div>
 <div class="note danger"><strong>Hard licensing constraint:</strong> Anthropic does not permit third-party developers to offer claude.ai/subscription login to <em>other</em> end users without prior approval. This tool is and must remain a <strong>personal, single-user, local</strong> app authenticated with the owner's own token. Do not evolve it into a hosted multi-user product sharing this auth path.</div>
@@ -319,6 +344,9 @@ parse:</p>
   <li>Each detected heading → a <code>SectionAnchor</code> with a stable <code>sectionId</code> (slug of title) and char range to the next heading.</li>
   <li>Bullets (<code>\item</code>) within a section become candidate sub-blocks.</li>
   <li>The parser is <strong>best-effort</strong>: <code>texRange</code> is informational (for editor highlighting); anchoring of feedback uses the stable <code>sectionId</code> + quoted text, which survives edits even when char offsets shift.</li>
+  <li><strong>Fallback when no headings found</strong> (custom/exotic document class): the whole body becomes a single synthetic section (<code>sectionId: "document"</code>); feedback anchors then rely solely on quoted-text matching. The app never errors on an unparseable class — it degrades to whole-document anchoring.</li>
+  <li>Multi-level nesting (<code>\subsubsection</code>) is flattened to the nearest <code>section</code>/<code>subsection</code> for anchoring; deeper levels are recorded as <code>subBlock</code> labels only.</li>
+  <li><strong>Anchor staleness:</strong> after multiple edits to one section, quoted text may no longer match. The UI hints "results may have shifted — re-run analysis to refresh"; a full re-analysis is the supported way to resync.</li>
 </ul>
 <div class="note">Because the agent edits via <code>propose_edit</code> (string find/replace within a section), char ranges drift after edits. <strong>Re-run the parser after every applied edit</strong> and re-resolve anchors by matching quoted text → section. This is why anchors store quoted text, not just offsets (resolves the brittleness of pure line/char ranges).</div>
 
@@ -329,14 +357,24 @@ in-process SDK MCP tools; built-in tools (Read/Edit/Bash) are <em>not</em> in <c
 <table>
   <tr><th>Tool</th><th>Input</th><th>Effect</th></tr>
   <tr><td><code>read_resume</code></td><td>—</td><td>Returns current <code>resume.tex</code> + parsed section tree.</td></tr>
-  <tr><td><code>get_context</code></td><td>{ sectionId? }</td><td>Returns the feedback point, JD requirements, and target section text.</td></tr>
+  <tr><td><code>get_context</code></td><td>{ sectionId? }</td><td>Returns: the current <code>FeedbackPoint</code>, full <code>JobRequirements</code> (if present), the target section text + a few adjacent lines, and the prior messages in this point's conversation thread (for coherence). Bounded to keep token use low.</td></tr>
   <tr><td><code>propose_edit</code></td><td>{ sectionId, find, replace, rationale }</td><td>Produces a diff surfaced to the user for approval. Does NOT write to disk.</td></tr>
   <tr><td><code>recompile</code></td><td>—</td><td>Compiles the <em>proposed</em> (or current) <code>.tex</code> to validate it builds; returns errors if any.</td></tr>
 </table>
 <p><strong>Approval gate:</strong> <code>propose_edit</code> only stages a diff. The UI shows it; on user approve, the
 server snapshots the current <code>.tex</code> to <code>versions/NNNN.tex</code>, applies the change, recompiles,
-updates <code>resume.pdf</code>, and re-parses anchors. On reject, nothing is written. This realizes the
+updates <code>resume.pdf</code>, and re-parses anchors. On reject, nothing is written. The feedback point this
+edit targets auto-advances to <code>addressed</code>. On reject, nothing is written. This realizes the
 "diff preview + approve" decision and keeps the loop observable.</p>
+<h4>Self-healing compile loop (on post-edit compile failure)</h4>
+<p>If the recompile after an applied edit <strong>fails</strong>, the server does not immediately give up:</p>
+<ol>
+  <li>The LaTeX error (first error + line, from <code>compile.log</code>) is fed back to the agent as a <code>recompile</code> <code>{ok:false,error}</code> result.</li>
+  <li>The agent attempts a fix via <code>propose_edit</code> → auto-applied within this repair loop → recompile. <strong>Up to 3 repair attempts.</strong></li>
+  <li>If it compiles within 3 tries: success, PDF updates, the repair diffs are folded into the version history with a note.</li>
+  <li>If it still fails after 3 tries: stop, surface the LaTeX error prominently, and offer one-click <strong>undo</strong> to the pre-edit snapshot. The edited <code>.tex</code> is left in place (not auto-reverted) so the user can also fix it by hand.</li>
+</ol>
+<div class="note warn">The repair loop's <code>propose_edit</code> calls are auto-applied (no per-hunk gate) <em>only</em> while resolving a compile failure the user already approved the originating edit for — this keeps the fix flow fast without surprising the user with unrelated changes. Each repair attempt is logged.</div>
 <div class="note warn">Streaming: agent events (assistant tokens, tool calls, proposed diffs) stream to the browser over SSE so the chat feels live. Tool execution happens server-side; only <code>propose_edit</code> requires a human gate before it has any effect.</div>
 
 <h2 id="latex">10. LaTeX compilation &amp; PDF</h2>
@@ -344,8 +382,10 @@ updates <code>resume.pdf</code>, and re-parses anchors. On reject, nothing is wr
   <li>Compile via <code>latexmk -pdf -interaction=nonstopmode -halt-on-error</code> in a temp working dir, spawned with <code>child_process</code>.</li>
   <li><strong>Timeout</strong> (e.g. 30s) and process kill on overrun — the one safety measure (input is trusted/self-authored per decision).</li>
   <li>On success: copy PDF to <code>resume.pdf</code>, log to <code>compile.log</code>, return success + (optional) page count.</li>
-  <li>On failure: parse <code>latexmk</code>/<code>.log</code> for the first error + line number; surface in the UI near the source pane.</li>
+  <li>On failure: parse <code>latexmk</code>/<code>.log</code> for the first error + line number; surface in the UI near the source pane. The PDF pane shows the error message; if a prior good <code>resume.pdf</code> exists it's shown behind a "stale — last compiled successfully &lt;time&gt;" banner, else the pane shows the compile error only (never silently blank).</li>
   <li>The full TeX Live install lives in the Docker image so arbitrary resume templates/packages compile.</li>
+  <li><strong>Docker preflight:</strong> on app startup the compile service checks the Docker daemon (e.g. <code>docker info</code>). If Docker is missing or not running, the UI shows a friendly setup guide (link to Docker Desktop + the one-line image pull) instead of a cryptic runtime error. Docker is documented as a hard prerequisite in the README.</li>
+  <li><strong>Timeout</strong> is 30s default, adjustable in <code>config.json</code> (post-v1 UI). On overrun the process is killed and reported as a compile failure.</li>
 </ul>
 <div class="note">Compilation is the slowest op (1–5s typical). Debounce auto-compile on source edits, or compile on explicit "Recompile" + after each applied agent edit. <strong>Decision: compile on explicit action + after applied edits</strong> (not on every keystroke) to keep it snappy. See OQ-2.</div>
 
@@ -354,8 +394,9 @@ updates <code>resume.pdf</code>, and re-parses anchors. On reject, nothing is wr
 LaTeX template</strong>. Output is well-formatted but does <em>not</em> visually match the original PDF.</p>
 <ol>
   <li>Extract text with <code>pdftotext -layout</code> (poppler) and/or <code>pdf.js</code>.</li>
-  <li>LLM <code>generateStructured</code> call segments text into resume sections (contact, summary, experience[{company, role, dates, bullets}], education, skills, projects).</li>
-  <li>Render that structure through a bundled, ATS-friendly one-column template (e.g. a clean <code>article</code>/<code>moderncv</code>-style class) → <code>resume.tex</code>.</li>
+  <li>LLM <code>generateStructured</code> call segments text into a <code>ResumeSegmentation</code> (Zod-validated):<br>
+  <code>{ contact: {name, email, phone?, links[]}, summary?: string, experience: {company, role, dates, bullets[]}[], education: {school, degree, dates}[], skills: string[], projects?: {name, desc, bullets[]}[] }</code>.</li>
+  <li>Render that structure through the bundled <strong>"Jake's Resume"</strong> one-column template (in <code>lib/templates/</code>; its custom macros are vendored with attribution + license) → <code>resume.tex</code>.</li>
   <li>Compile and present. The user can then edit/iterate normally.</li>
 </ol>
 <div class="note warn">The UI must set expectations explicitly: "Imported from PDF — formatting is rebuilt from a clean template, not copied from your original." This prevents the disappointment risk of PDF import.</div>
@@ -397,8 +438,11 @@ LaTeX template</strong>. Output is well-formatted but does <em>not</em> visually
   <tr><td><code>/api/projects/:id/chat/:pointId</code></td><td>POST (SSE)</td><td>Agent turn for a point; streams events incl. proposed edits.</td></tr>
   <tr><td><code>/api/projects/:id/edits/apply</code></td><td>POST</td><td>Apply an approved diff: snapshot version, write, recompile, re-parse.</td></tr>
   <tr><td><code>/api/projects/:id/export</code></td><td>GET</td><td>Download <code>.tex</code> or <code>.pdf</code> (<code>?format=</code>).</td></tr>
-  <tr><td><code>/api/config</code></td><td>GET / PATCH</td><td>Provider selection, OpenAI key, OAuth token presence check.</td></tr>
+  <tr><td><code>/api/projects/:id/versions</code></td><td>GET</td><td>List version snapshots with <code>{ version, ts, summary }</code>.</td></tr>
+  <tr><td><code>/api/projects/:id/versions/:n/restore</code></td><td>POST</td><td>Restore a prior snapshot as the current <code>resume.tex</code> (itself snapshotted first), recompile, re-parse.</td></tr>
+  <tr><td><code>/api/config</code></td><td>GET / PATCH</td><td>Provider selection, OpenAI key (write-only), OAuth token presence check, Docker availability status.</td></tr>
 </table>
+<div class="note">Every endpoint returns a typed error envelope <code>{ error: { code, message } }</code> on failure. SSE chat streams an <code>AgentEvent</code> of <code>{type:"error"}</code> for in-turn failures so the client can render them inline without dropping the stream.</div>
 
 <h2 id="flows">14. Key flows</h2>
 <h4>Analyze (JD-aware)</h4>
@@ -414,6 +458,29 @@ point status optionally → "addressed".</p>
 <h4>PDF import</h4>
 <p class="seq">POST /projects (PDF) → pdftotext → generateStructured(segmentation) →
 render clean template → resume.tex → compile → open project with "rebuilt from template" banner.</p>
+
+<h2 id="errors">14b. Error handling &amp; recovery</h2>
+<table>
+  <tr><th>Failure</th><th>Behavior</th></tr>
+  <tr><td>LLM structured output fails Zod</td><td>Retry up to 3× with the validation error re-prompted; then user-facing "extraction failed" + raw output logged.</td></tr>
+  <tr><td>Compile fails after applied edit</td><td>Self-heal loop: feed error to agent, fix+recompile up to 3×; then surface error + offer undo (edit left in place).</td></tr>
+  <tr><td>Compile fails on initial upload</td><td>Show error in PDF pane; no prior PDF to fall back to; user edits source and recompiles.</td></tr>
+  <tr><td>Apply-edit crash mid-write</td><td>Snapshot persisted before <code>resume.tex</code> overwrite (atomic rename) → prior version always recoverable.</td></tr>
+  <tr><td>Docker unavailable</td><td>Startup preflight → friendly setup guide; compile actions disabled until resolved.</td></tr>
+  <tr><td>SSE/agent turn error</td><td>Emit <code>{type:"error"}</code> event; render inline in chat; stream not dropped.</td></tr>
+  <tr><td>Orphaned/out-of-sync versions</td><td>Rebuild <code>index.json</code> from disk on load; warn on orphans.</td></tr>
+  <tr><td>Second tab on same project</td><td>Session-token guard → "already open elsewhere" warning.</td></tr>
+</table>
+
+<h2 id="testing">14c. Testing strategy (comprehensive)</h2>
+<table>
+  <tr><th>Layer</th><th>Coverage</th></tr>
+  <tr><td>Unit</td><td>Section parser (incl. no-heading fallback, nesting flatten, exotic classes); all Zod schemas (FeedbackPoint, JobRequirements, ResumeSegmentation, tool inputs); anchor re-resolution by quoted text; diff apply/snapshot logic; atomic-write helper.</td></tr>
+  <tr><td>Integration</td><td>Compile service against the TeX Live container (success, failure-with-line-parse, timeout/kill); self-heal loop (mock agent returning a fix then failing 3×); version restore; JD extraction → analyze pipeline; provider abstraction <strong>parity tests</strong> (same tool contract honored by Claude &amp; OpenAI providers, using recorded/mocked responses).</td></tr>
+  <tr><td>E2E</td><td>Happy paths via Playwright: (1) upload <code>.tex</code> → analyze → discuss a point → approve edit → recompile → export; (2) paste JD → JD-aware analysis shows gap items; (3) PDF import → reconstructed template compiles; (4) edit that breaks compile → self-heal or undo.</td></tr>
+  <tr><td>Type/static</td><td>Strict TypeScript, Zod at all LLM/API boundaries, lint in CI.</td></tr>
+</table>
+<div class="note">Provider calls are mocked/recorded in CI (no live subscription/API spend). A small set of real-provider smoke tests can be run manually/locally.</div>
 
 <h2 id="risks">15. Risks &amp; constraints</h2>
 <table>
@@ -444,13 +511,23 @@ render clean template → resume.tex → compile → open project with "rebuilt 
 <ul>
   <li>Deployment, auth, providers, stack, persistence, compile location, compile safety, anchoring, edit-application, agent autonomy, feedback shape, JD handling, resume input, UI layout, v1 scope (all four pillars are v1).</li>
 </ul>
-<h4>Open questions to confirm</h4>
+<h4>Resolved during validation (Phase 4)</h4>
 <ul>
-  <li><strong>OQ-1 (resolved default):</strong> Engine = full TeX Live (not Tectonic) for max package coverage. Confirm acceptable image size (~1–4GB) for a local tool.</li>
-  <li><strong>OQ-2 (resolved default):</strong> Compile on explicit action + after applied edits (no compile-on-keystroke). Confirm.</li>
-  <li><strong>OQ-3 (RESOLVED):</strong> Next.js + Agent SDK run natively on the host (macOS); LaTeX compiles in a TeX Live Docker container the app shells into. Chosen for the clean <code>claude setup-token</code> OAuth path.</li>
-  <li><strong>OQ-4 (RESOLVED):</strong> Bundled template = "Jake's Resume" (clean one-column, ATS-friendly) for PDF-import output and start-fresh.</li>
-  <li><strong>OQ-5:</strong> Should "Run analysis" diff against prior feedback (track which points are newly addressed) or always replace? Default: replace, mark resolved heuristically.</li>
+  <li><strong>OQ-1:</strong> Engine = full TeX Live (not Tectonic), ~1–4GB image accepted for a local tool. Show pull progress.</li>
+  <li><strong>OQ-2:</strong> Compile on explicit action + after applied edits (no compile-on-keystroke).</li>
+  <li><strong>OQ-3:</strong> Next.js + Agent SDK run natively on the host (macOS); LaTeX in a TeX Live Docker container. Clean <code>claude setup-token</code> OAuth path.</li>
+  <li><strong>OQ-4:</strong> Bundled template = "Jake's Resume" for PDF-import output and start-fresh.</li>
+  <li><strong>OQ-5:</strong> "Run analysis" replaces prior feedback; points are marked resolved heuristically (auto-<code>addressed</code> on applied edits).</li>
+  <li><strong>D-6:</strong> Feedback point auto-advances to <code>addressed</code> when an approved edit targets its section (manual revert allowed; <code>dismissed</code> always manual).</li>
+  <li><strong>D-7:</strong> Post-edit compile failure → agent self-heal loop (≤3 attempts) → then error + undo, edit left in place.</li>
+  <li><strong>D-8:</strong> Docker daemon checked at startup; friendly setup guide if missing.</li>
+  <li><strong>D-9:</strong> Comprehensive testing (unit + integration incl. provider parity + Playwright e2e); providers mocked in CI.</li>
+  <li><strong>D-10 (defaults applied):</strong> atomic temp-then-rename writes; single-tab session guard; <code>config.json</code> mode 0600, OpenAI key server-only/never logged; Zod retry = 3; <code>ResumeTool</code>/<code>AgentEvent</code> types defined (§6); version list/restore API (§13); no-heading parser fallback (§8); JD input accepts any pasted text (UI note: plain text best); v1 is English-only, no theming/i18n; feedback.json replaced per analysis (older lost — acceptable v1).</li>
+</ul>
+<h4>Remaining open (none blocking)</h4>
+<ul>
+  <li>Exact "Jake's Resume" vendor commit/license pin — fix at M5.</li>
+  <li>Whether to add an OpenAI cost estimator before agent turns — post-v1 nice-to-have.</li>
 </ul>
 
 </div>
