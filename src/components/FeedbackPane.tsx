@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, FeedbackPoint, Severity } from "@/lib/llm";
 import { useEditorStore } from "@/lib/store/editorStore";
 
+import { ChatPanel } from "./ChatPanel";
 import { JdPanel } from "./JdPanel";
 
 /**
@@ -43,6 +44,7 @@ export function FeedbackPane() {
   const [error, setError] = useState<string | null>(null);
   const [sevFilter, setSevFilter] = useState<Severity | "all">("all");
   const [catFilter, setCatFilter] = useState<Category | "all">("all");
+  const [chatPointId, setChatPointId] = useState<string | null>(null);
 
   // Load persisted feedback when the project changes.
   useEffect(() => {
@@ -185,11 +187,29 @@ export function FeedbackPane() {
                 </div>
                 <p className="text-sm text-zinc-800 dark:text-zinc-200">{p.issue}</p>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{p.suggestion}</p>
+                <button
+                  type="button"
+                  data-discuss-id={p.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChatPointId(p.id);
+                    selectSection(p.anchor.sectionId);
+                  }}
+                  className="mt-1.5 text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Discuss →
+                </button>
               </li>
             );
           })}
         </ul>
       </div>
+
+      {chatPointId && (
+        <div className="h-1/2 min-h-0 shrink-0">
+          <ChatPanel pointId={chatPointId} onClose={() => setChatPointId(null)} />
+        </div>
+      )}
     </div>
   );
 }
