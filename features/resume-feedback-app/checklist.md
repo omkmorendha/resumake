@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 1/24 complete**
+**Status: 3/24 complete**
 
 ---
 
@@ -11,11 +11,11 @@ Spec: `spec.md` · Design: `design.html`.
 
 - [x] **0.1 Bootstrap Next.js (App Router, TS, Tailwind), strict tsconfig, ESLint.**
   - AC: `npm run dev` serves a blank app on localhost; `tsc --noEmit` and lint pass.
-- [ ] **0.2 TeX Live Docker image + compile service abstraction.**
+- [x] **0.2 TeX Live Docker image + compile service abstraction.**
   - AC: a service compiles a sample `.tex` via `latexmk` in the container and returns a PDF path; transport (docker run/exec) is swappable behind an interface.
 - [ ] **0.3 Docker preflight check at startup.**
   - AC: with Docker stopped, the app shows a friendly setup guide instead of crashing; with Docker up, normal operation.
-- [ ] **0.4 Files-only storage layer (atomic write-temp-then-rename helper, project dir CRUD).**
+- [x] **0.4 Files-only storage layer (atomic write-temp-then-rename helper, project dir CRUD).**
   - AC: create/read/delete a project dir; concurrent-write test shows no torn `feedback.json`.
 - [ ] **0.5 Create project from `.tex` upload; compile; store `resume.pdf` + `compile.log`.**
   - AC: uploading a valid `.tex` yields a compiled PDF on disk; invalid `.tex` records a parsed first-error+line in the log.
