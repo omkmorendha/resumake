@@ -4,6 +4,8 @@ import { useCallback } from "react";
 
 import { selectIsDirty, useEditorStore } from "@/lib/store/editorStore";
 
+import { VersionsPanel } from "./VersionsPanel";
+
 /**
  * Workspace toolbar (Task 1.2): explicit Recompile action. Compiles the live
  * editor buffer via the compile API, then refreshes the PDF preview on success
@@ -72,6 +74,9 @@ export function Toolbar() {
           Unsaved edits — recompile to update the PDF.
         </span>
       )}
+      <div className="ml-auto">
+        <VersionsPanel />
+      </div>
     </div>
   );
 }

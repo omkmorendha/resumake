@@ -118,3 +118,59 @@ export async function readVersionSource(
 ): Promise<string> {
   return readFile(join(versionsDir(projectId, dataRoot), fileFor(version)), "utf8");
 }
+
+export interface RestoreResult {
+  /** Version created from the pre-restore source (so a restore is itself undoable). */
+  snapshotVersion: number;
+  source: string;
+  compiled: boolean;
+  compileError?: { message: string; line?: number };
+  sectionIds: string[];
+}
+
+/**
+ * Restore a snapshot (Task 4.6): snapshot the CURRENT source first (so restore
+ * is reversible), write the target version's source as resume.tex, recompile,
+ * and re-parse anchors.
+ */
+export async function restoreVersion(
+  projectId: string,
+  version: number,
+  now: string,
+  dataRoot: string = getDataRoot(),
+): Promise<RestoreResult> {
+  // Imported lazily to avoid a cycle (compileAndPersist → versions is not a
+  // cycle, but parser/compile pull in heavier deps; keep this module lean).
+  const { readFile: rf } = await import("node:fs/promises");
+  const { parseSections } = await import("@/lib/parser");
+  const { compileAndPersist } = await import("./compileAndPersist");
+
+  const dir = getProjectDir(projectId, dataRoot);
+  const texPath = join(dir, PROJECT_FILENAMES.resumeTex);
+
+  const current = await rf(texPath, "utf8");
+  const target = await readVersionSource(projectId, version, dataRoot);
+
+  // Snapshot current first so the restore can itself be undone.
+  const snap = await snapshotVersion(
+    projectId,
+    current,
+    `Before restoring v${version}`,
+    now,
+    dataRoot,
+  );
+
+  await atomicWrite(texPath, target);
+  const compile = await compileAndPersist({ projectId, tex: target, dataRoot });
+  const sectionIds = parseSections(target).map((s) => s.sectionId);
+
+  return {
+    snapshotVersion: snap,
+    source: target,
+    compiled: compile.compiled,
+    compileError: compile.compileError
+      ? { message: compile.compileError.message, line: compile.compileError.line }
+      : undefined,
+    sectionIds,
+  };
+}

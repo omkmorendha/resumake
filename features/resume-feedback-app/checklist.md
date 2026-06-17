@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 19/24 complete**
+**Status: 23/26 complete** (M0–M4 done; M5 + M6 remain. Earlier "/24" miscounted — there are 26 numbered tasks M0–M6.)
 
 ---
 
@@ -59,13 +59,13 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: each tool validates input via Zod and returns a `ToolResult`; the agent cannot invoke filesystem/shell tools.
 - [x] **4.2 Per-point SSE chat (`/chat/:pointId`) streaming `AgentEvent`s; OpenAI manual tool loop parity.** _(OpenAI loop fully impl+tested; Claude streaming adapter stubbed pending a live token — see decisions log; SSE plumbing verified live)_
   - AC: chatting streams tokens/tool calls; provider-parity test shows both providers honor the same tool contract (mocked).
-- [ ] **4.3 `propose_edit` → diff modal (per-hunk approve/reject).**
+- [x] **4.3 `propose_edit` → diff modal (per-hunk approve/reject).**
   - AC: a proposed edit renders as a reviewable diff; reject writes nothing.
-- [ ] **4.4 `/edits/apply`: snapshot → write (atomic) → recompile → re-parse → auto-`addressed`.**
+- [x] **4.4 `/edits/apply`: snapshot → write (atomic) → recompile → re-parse → auto-`addressed`.**
   - AC: approving an edit snapshots a version, applies it, recompiles, re-resolves anchors, and marks the point `addressed`; crash-before-write test recovers the prior version.
-- [ ] **4.5 Self-heal compile loop (≤3 agent fix attempts → then error + undo).**
+- [x] **4.5 Self-heal compile loop (≤3 agent fix attempts → then error + undo).**
   - AC: an edit that breaks compilation triggers ≤3 auto-fix attempts; on success PDF updates and repairs are logged; on persistent failure the error + one-click undo are shown, edit left in place.
-- [ ] **4.6 Version list + restore API and minimal UI.**
+- [x] **4.6 Version list + restore API and minimal UI.**
   - AC: `/versions` lists snapshots; restore reverts (snapshotting first), recompiles, re-parses.
 
 ## M5 — PDF import
