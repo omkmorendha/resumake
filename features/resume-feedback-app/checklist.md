@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 4/24 complete**
+**Status: 5/24 complete**
 
 ---
 
@@ -17,7 +17,7 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: with Docker stopped, the app shows a friendly setup guide instead of crashing; with Docker up, normal operation.
 - [x] **0.4 Files-only storage layer (atomic write-temp-then-rename helper, project dir CRUD).**
   - AC: create/read/delete a project dir; concurrent-write test shows no torn `feedback.json`.
-- [ ] **0.5 Create project from `.tex` upload; compile; store `resume.pdf` + `compile.log`.**
+- [x] **0.5 Create project from `.tex` upload; compile; store `resume.pdf` + `compile.log`.**
   - AC: uploading a valid `.tex` yields a compiled PDF on disk; invalid `.tex` records a parsed first-error+line in the log.
 - [ ] **0.6 Export `.tex` and `.pdf` endpoints.**
   - AC: `GET /export?format=tex|pdf` downloads the correct file.
