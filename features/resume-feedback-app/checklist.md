@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 6/24 complete**
+**Status: 8/24 complete**
 
 ---
 
@@ -24,11 +24,11 @@ Spec: `spec.md` · Design: `design.html`.
 
 ## M1 — 3-pane editor & section parser
 
-- [ ] **1.1 3-pane layout (CodeMirror source · pdf.js preview · feedback/chat placeholder).**
+- [x] **1.1 3-pane layout (CodeMirror source · pdf.js preview · feedback/chat placeholder).**
   - AC: panes render and resize; editing source updates client state.
 - [ ] **1.2 Recompile on explicit action; PDF pane refresh; error/stale-PDF handling.**
   - AC: "Recompile" updates the PDF; on failure the pane shows the error (and stale PDF behind a banner if one exists), never silently blank.
-- [ ] **1.3 Heuristic section parser → section tree (with no-heading fallback, nesting flatten).**
+- [x] **1.3 Heuristic section parser → section tree (with no-heading fallback, nesting flatten).**
   - AC: unit tests cover `\section`/`\subsection`/resume macros/environments, exotic class (→ single `document` section), and `\subsubsection` flattening.
 - [ ] **1.4 Section highlight: selecting a section scrolls/highlights source (best-effort) and PDF.**
   - AC: clicking a parsed section highlights its range in the editor.
@@ -87,6 +87,7 @@ Spec: `spec.md` · Design: `design.html`.
 - [ ] **T.1 Unit tests:** parser, schemas, anchor re-resolution, diff/snapshot, atomic-write.
 - [ ] **T.2 Integration tests:** compile (success/failure/timeout), self-heal, version restore, JD→analyze, provider parity.
 - [ ] **T.3 E2E (Playwright):** upload→analyze→discuss→approve→recompile→export; JD-aware; PDF import; compile-break→self-heal/undo.
+  - _In progress: Playwright installed + configured (`playwright.config.ts`, `e2e/`); first e2e covers the 3-pane workspace (1.1). Remaining flows added as their features land._
 - [ ] **T.4 CI:** strict `tsc`, lint, tests with providers mocked (no live spend).
 - [ ] **T.5 Docs:** README prerequisites (Docker, `claude setup-token`, `ANTHROPIC_API_KEY` warning), `.env.example`.
 
