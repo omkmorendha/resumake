@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 5/24 complete**
+**Status: 6/24 complete**
 
 ---
 
@@ -19,7 +19,7 @@ Spec: `spec.md` · Design: `design.html`.
   - AC: create/read/delete a project dir; concurrent-write test shows no torn `feedback.json`.
 - [x] **0.5 Create project from `.tex` upload; compile; store `resume.pdf` + `compile.log`.**
   - AC: uploading a valid `.tex` yields a compiled PDF on disk; invalid `.tex` records a parsed first-error+line in the log.
-- [ ] **0.6 Export `.tex` and `.pdf` endpoints.**
+- [x] **0.6 Export `.tex` and `.pdf` endpoints.**
   - AC: `GET /export?format=tex|pdf` downloads the correct file.
 
 ## M1 — 3-pane editor & section parser
