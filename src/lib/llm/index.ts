@@ -32,3 +32,10 @@ export type {
   LLMProvider,
 } from "./types";
 export { StructuredGenerationError } from "./types";
+export {
+  generateStructuredWithRetry,
+  buildRetryUser,
+  extractJson,
+  type RawGenerate,
+  type StructuredRetryOptions,
+} from "./structuredRetry";
