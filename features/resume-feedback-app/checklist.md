@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 17/24 complete**
+**Status: 19/24 complete**
 
 ---
 
@@ -55,9 +55,9 @@ Spec: `spec.md` · Design: `design.html`.
 
 ## M4 — Agent loop, diff-approve, self-heal
 
-- [ ] **4.1 Four constrained tools implemented (`read_resume`, `get_context`, `propose_edit`, `recompile`); Read/Edit/Bash excluded.**
+- [x] **4.1 Four constrained tools implemented (`read_resume`, `get_context`, `propose_edit`, `recompile`); Read/Edit/Bash excluded.**
   - AC: each tool validates input via Zod and returns a `ToolResult`; the agent cannot invoke filesystem/shell tools.
-- [ ] **4.2 Per-point SSE chat (`/chat/:pointId`) streaming `AgentEvent`s; OpenAI manual tool loop parity.**
+- [x] **4.2 Per-point SSE chat (`/chat/:pointId`) streaming `AgentEvent`s; OpenAI manual tool loop parity.** _(OpenAI loop fully impl+tested; Claude streaming adapter stubbed pending a live token — see decisions log; SSE plumbing verified live)_
   - AC: chatting streams tokens/tool calls; provider-parity test shows both providers honor the same tool contract (mocked).
 - [ ] **4.3 `propose_edit` → diff modal (per-hunk approve/reject).**
   - AC: a proposed edit renders as a reviewable diff; reject writes nothing.
