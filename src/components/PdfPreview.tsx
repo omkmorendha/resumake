@@ -14,6 +14,7 @@ import { useEditorStore } from "@/lib/store/editorStore";
  */
 export function PdfPreview() {
   const pdfUrl = useEditorStore((s) => s.pdfUrl);
+  const compileError = useEditorStore((s) => s.compileError);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,11 +32,13 @@ export function PdfPreview() {
       setLoading(true);
       try {
         const pdfjs = await import("pdfjs-dist");
-        // Wire the worker from the bundled module URL (no CDN dependency).
-        const workerSrc = (
-          await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
-        ).default;
-        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+        // Wire the worker from the bundled asset URL. `new URL(..., import.meta.url)`
+        // is understood by both webpack and Turbopack and yields a real URL to
+        // the worker module (no CDN dependency, no `?url` loader needed).
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url,
+        ).toString();
 
         const doc = await pdfjs.getDocument({ url: pdfUrl }).promise;
         if (cancelled) return;
@@ -67,11 +70,35 @@ export function PdfPreview() {
     };
   }, [pdfUrl]);
 
+  // A compile error with an existing PDF → show the stale PDF behind a banner.
+  // A compile error with no PDF → show the error prominently (never blank).
+  const showStaleBanner = compileError !== null && pdfUrl !== null;
+
   return (
     <div className="relative h-full w-full overflow-auto bg-zinc-100 dark:bg-zinc-900">
-      {!pdfUrl && !error && (
+      {compileError && (
+        <div
+          role="alert"
+          className="sticky top-0 z-10 border-b border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/60 dark:text-red-300"
+        >
+          <span className="font-semibold">Compile failed:</span>{" "}
+          {compileError.message}
+          {compileError.line ? ` (line ${compileError.line})` : ""}
+          {showStaleBanner && (
+            <span className="ml-1 text-red-600/80 dark:text-red-400/80">
+              — showing the last successful PDF.
+            </span>
+          )}
+        </div>
+      )}
+      {!pdfUrl && !error && !compileError && (
         <p className="p-6 text-center text-sm text-zinc-500">
           No PDF yet — recompile to preview.
+        </p>
+      )}
+      {!pdfUrl && compileError && (
+        <p className="p-6 text-center text-sm text-zinc-500">
+          No PDF to show yet — fix the error above and recompile.
         </p>
       )}
       {loading && (

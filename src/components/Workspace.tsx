@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { FeedbackPane } from "./FeedbackPane";
 import { PdfPreview } from "./PdfPreview";
 import { SourceEditor } from "./SourceEditor";
+import { Toolbar } from "./Toolbar";
 
 /**
  * The 3-pane workspace (spec §4 UI): LaTeX source · PDF preview · Feedback/chat.
@@ -45,7 +46,9 @@ export function Workspace() {
   const rightFr = Math.max(0.15, 1 - leftFr - midFr);
 
   return (
-    <div ref={rootRef} className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <Toolbar />
+      <div ref={rootRef} className="flex min-h-0 flex-1 w-full overflow-hidden">
       <section
         className="h-full min-w-0 border-r border-zinc-200 dark:border-zinc-800"
         style={{ flex: `${leftFr} 1 0` }}
@@ -73,6 +76,7 @@ export function Workspace() {
       >
         <FeedbackPane />
       </section>
+      </div>
     </div>
   );
 }

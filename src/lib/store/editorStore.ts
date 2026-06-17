@@ -22,12 +22,20 @@ export interface EditorState {
   pdfUrl: string | null;
   /** sectionId selected in any pane, for cross-pane highlight (Task 1.4). */
   selectedSectionId: string | null;
+  /** Whether a compile is in flight. */
+  compiling: boolean;
+  /** Last compile error (LaTeX first error message + line), or null. */
+  compileError: { message: string; line?: number } | null;
+  /** True once at least one successful compile produced a PDF this session. */
+  hasPdf: boolean;
 
   setProject: (id: string, source: string, pdfUrl: string | null) => void;
   setSource: (source: string) => void;
   markPersisted: (source: string) => void;
   setPdfUrl: (url: string | null) => void;
   selectSection: (sectionId: string | null) => void;
+  setCompiling: (compiling: boolean) => void;
+  setCompileError: (err: { message: string; line?: number } | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -36,6 +44,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   persistedSource: "",
   pdfUrl: null,
   selectedSectionId: null,
+  compiling: false,
+  compileError: null,
+  hasPdf: false,
 
   setProject: (id, source, pdfUrl) =>
     set({
@@ -44,11 +55,15 @@ export const useEditorStore = create<EditorState>((set) => ({
       persistedSource: source,
       pdfUrl,
       selectedSectionId: null,
+      compileError: null,
+      hasPdf: pdfUrl !== null,
     }),
   setSource: (source) => set({ source }),
   markPersisted: (source) => set({ persistedSource: source, source }),
-  setPdfUrl: (url) => set({ pdfUrl: url }),
+  setPdfUrl: (url) => set({ pdfUrl: url, hasPdf: url !== null }),
   selectSection: (sectionId) => set({ selectedSectionId: sectionId }),
+  setCompiling: (compiling) => set({ compiling }),
+  setCompileError: (compileError) => set({ compileError }),
 }));
 
 /** True when the live buffer differs from the last persisted source. */

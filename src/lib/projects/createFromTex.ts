@@ -7,20 +7,16 @@
  * the project is still created (the user can fix and recompile) — only the
  * log + parsed first error are recorded, never a silently-blank PDF.
  */
-import { readFile, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
-
 import { CompileService } from "@/lib/latex";
 import type { LatexError } from "@/lib/latex";
-import { atomicWrite } from "@/lib/storage";
 import {
-  PROJECT_FILENAMES,
   createProject,
   type CreateProjectInput,
   type ProjectMeta,
 } from "@/lib/storage";
-import { getProjectDir } from "@/lib/storage";
 import { getDataRoot } from "@/lib/storage";
+
+import { compileAndPersist } from "./compileAndPersist";
 
 export interface CreateFromTexInput {
   name: string;
@@ -52,22 +48,16 @@ export async function createProjectFromTex(
     dataRoot,
   });
 
-  const dir = getProjectDir(project.id, dataRoot);
-  const svc = input.compileService ?? new CompileService();
-  const result = await svc.compile({ tex: input.tex });
+  const result = await compileAndPersist({
+    projectId: project.id,
+    tex: input.tex,
+    dataRoot,
+    compileService: input.compileService,
+  });
 
-  // Always persist the log so a failed compile is inspectable.
-  await atomicWrite(join(dir, PROJECT_FILENAMES.compileLog), result.log);
-
-  if (result.ok && result.pdfPath) {
-    // Read the compiled PDF (a stable temp copy from the service) and write it
-    // into the project dir atomically, then remove the service's temp copy
-    // dir so it doesn't accumulate in the OS temp space.
-    const pdfBytes = await readFile(result.pdfPath);
-    await atomicWrite(join(dir, PROJECT_FILENAMES.resumePdf), pdfBytes);
-    await rm(dirname(result.pdfPath), { recursive: true, force: true }).catch(() => {});
-    return { project, compiled: true };
-  }
-
-  return { project, compiled: false, compileError: result.firstError };
+  return {
+    project,
+    compiled: result.compiled,
+    compileError: result.compileError,
+  };
 }

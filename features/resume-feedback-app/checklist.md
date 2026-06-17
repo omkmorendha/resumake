@@ -3,7 +3,7 @@
 Ordered tasks with acceptance criteria. Grouped by milestone. Check off as completed.
 Spec: `spec.md` · Design: `design.html`.
 
-**Status: 8/24 complete**
+**Status: 9/24 complete**
 
 ---
 
@@ -26,7 +26,7 @@ Spec: `spec.md` · Design: `design.html`.
 
 - [x] **1.1 3-pane layout (CodeMirror source · pdf.js preview · feedback/chat placeholder).**
   - AC: panes render and resize; editing source updates client state.
-- [ ] **1.2 Recompile on explicit action; PDF pane refresh; error/stale-PDF handling.**
+- [x] **1.2 Recompile on explicit action; PDF pane refresh; error/stale-PDF handling.**
   - AC: "Recompile" updates the PDF; on failure the pane shows the error (and stale PDF behind a banner if one exists), never silently blank.
 - [x] **1.3 Heuristic section parser → section tree (with no-heading fallback, nesting flatten).**
   - AC: unit tests cover `\section`/`\subsection`/resume macros/environments, exotic class (→ single `document` section), and `\subsubsection` flattening.
