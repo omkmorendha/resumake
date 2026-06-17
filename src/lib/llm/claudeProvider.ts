@@ -32,7 +32,7 @@ import type { ChatMessage } from "./schemas";
 export const CLAUDE_MODEL = "claude-opus-4-8";
 
 /** Built-in tools never available to this app's Claude calls (spec §6/§7). */
-const DISALLOWED_TOOLS = [
+export const DISALLOWED_TOOLS = [
   "Bash",
   "Read",
   "Edit",
